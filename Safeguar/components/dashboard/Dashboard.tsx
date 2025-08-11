@@ -50,34 +50,75 @@ export function Dashboard({
   const fetchTravelersByDate = useCallback(
     async (date: Date) => {
       try {
-        const dateStr = format(date, "yyyy-MM-dd")
-        const { data: travelers, error } = await supabase
+        const monthNames = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ]
+
+        const month = monthNames[date.getMonth()]
+        const day = date.getDate()
+        const year = date.getFullYear()
+        const datePattern = `${month} ${day}, ${year}`
+
+        console.log(`Fetching travelers for date pattern: ${datePattern}`)
+
+        const { data: arrivingTravelers, error: arrivalError } = await supabase
           .from("travelers")
           .select("*")
-          .or(`departure_time.like.${dateStr}%,departure_time.like.%${dateStr}%`)
+          .eq("type", "arrival")
+          .ilike("departure_time", `${datePattern}%`)
           .order("departure_time")
 
-        if (error) {
-          console.error("Error fetching travelers by date:", error)
+        if (arrivalError) {
+          console.error("Error fetching arriving travelers:", arrivalError)
           return
         }
 
-        if (!travelers || travelers.length === 0) {
-          console.log(`No travelers found for date: ${dateStr}`)
+        console.log(`Found ${arrivingTravelers?.length || 0} arriving travelers for ${datePattern}`)
+
+        if (!arrivingTravelers || arrivingTravelers.length === 0) {
+          console.log(`No arriving travelers found for date: ${datePattern}`)
           setArrivalTravelers([])
           setDepartureTravelers([])
           setUniquePersons([])
           return
         }
 
-        const { arrivals, departures, uniquePersons } = processTravelerData(travelers)
+        // Get the person_ids of all arriving travelers
+        const arrivingPersonIds = arrivingTravelers.map((t) => t.person_id).filter(Boolean)
+
+        // Now get ALL travelers (arrivals and departures) for these people
+        const { data: allRelatedTravelers, error: allError } = await supabase
+          .from("travelers")
+          .select("*")
+          .in("person_id", arrivingPersonIds)
+          .order("departure_time")
+
+        if (allError) {
+          console.error("Error fetching all related travelers:", allError)
+          return
+        }
+
+        console.log(`Found ${allRelatedTravelers?.length || 0} total related travelers`)
+
+        const { arrivals, departures, uniquePersons } = processTravelerData(allRelatedTravelers || [])
 
         setArrivalTravelers(arrivals)
         setDepartureTravelers(departures)
         setUniquePersons(uniquePersons)
 
         console.log(
-          `Loaded ${travelers.length} travelers for ${dateStr}: ${arrivals.length} arrivals, ${departures.length} departures`,
+          `Processed data for ${datePattern}: ${arrivals.length} arrivals, ${departures.length} departures, ${uniquePersons.length} unique persons`,
         )
       } catch (error) {
         console.error("Error fetching travelers by date:", error)
@@ -102,32 +143,37 @@ export function Dashboard({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-lg border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-3 sm:py-4 gap-3 sm:gap-0">
-            <div className="flex items-center space-x-3 sm:space-x-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                  Safeguard Management
-                </h1>
-              </div>
+          <div className="flex items-center justify-between py-4 gap-4">
+            {/* Title */}
+            <div className="flex-shrink-0">
+              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                Safeguard Management
+              </h1>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            {/* Right side controls */}
+            <div className="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
+              {/* Date picker */}
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full sm:w-[240px] justify-start text-left font-normal bg-white/60 hover:bg-white/80 border-gray-200 hover:border-gray-300 transition-all duration-200",
+                      "justify-start text-left font-normal bg-white/70 hover:bg-white/90 border-gray-200 hover:border-gray-300 transition-all duration-200 min-w-0 flex-shrink-0",
+                      "text-sm sm:text-base px-2 sm:px-3 py-2",
                       !selectedDate && "text-muted-foreground",
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{selectedDate ? format(selectedDate, "PPP") : "Pick a date"}</span>
+                    <CalendarIcon className="mr-1 sm:mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">
+                      {selectedDate ? format(selectedDate, "MMM d, yyyy") : "Pick date"}
+                    </span>
+                    <span className="sm:hidden">{selectedDate ? format(selectedDate, "M/d") : "Date"}</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end" sideOffset={5}>
+                <PopoverContent className="w-auto p-0" align="end" sideOffset={8}>
                   <Calendar
                     mode="single"
                     selected={selectedDate}
@@ -138,12 +184,13 @@ export function Dashboard({
                       }
                     }}
                     initialFocus
-                    className="rounded-md border shadow-lg"
+                    className="rounded-lg border shadow-xl bg-white"
                   />
                 </PopoverContent>
               </Popover>
 
-              <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* User info and controls */}
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Badge
                   variant="secondary"
                   className={`px-2 sm:px-3 py-1 text-xs sm:text-sm flex-shrink-0 ${
@@ -152,17 +199,21 @@ export function Dashboard({
                       : "bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 border-blue-200"
                   }`}
                 >
-                  {userRole === "admin" ? "👑 Admin" : "👤 Employee"}
+                  <span className="hidden sm:inline">{userRole === "admin" ? "👑 Admin" : "👤 Employee"}</span>
+                  <span className="sm:hidden">{userRole === "admin" ? "👑" : "👤"}</span>
                 </Badge>
-                <span className="hidden sm:inline text-sm text-gray-600 bg-white/60 px-3 py-1 rounded-full truncate max-w-32">
+
+                <span className="hidden md:inline text-sm text-gray-600 bg-white/70 px-3 py-1 rounded-full truncate max-w-32">
                   {user.email}
                 </span>
+
                 <Button
                   variant="outline"
                   onClick={handleSignOut}
-                  className="bg-white/60 hover:bg-white/80 border-gray-200 hover:border-gray-300 transition-all duration-200 text-xs sm:text-sm px-2 sm:px-4 flex-shrink-0"
+                  className="bg-white/70 hover:bg-white/90 border-gray-200 hover:border-gray-300 transition-all duration-200 text-xs sm:text-sm px-2 sm:px-4 flex-shrink-0"
                 >
-                  Sign Out
+                  <span className="hidden sm:inline">Sign Out</span>
+                  <span className="sm:hidden">Out</span>
                 </Button>
               </div>
             </div>
