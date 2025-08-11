@@ -191,7 +191,7 @@ export default function HomePage() {
             console.error("Error fetching user role on auth change:", roleError)
             setUser({ id: session.user.id, email: session.user.email, role: "employee" })
           } else {
-            setUser({ id: session.user.id, email: session.user.email, role: roleData.role })
+            setUser({ id: session.user.id, email: roleData.role }) // Corrected: use roleData.role
           }
           await fetchTravelers()
         }
@@ -278,7 +278,19 @@ function LoginPage({ setUser }: { setUser: any }) {
           if (signInError) {
             setMessage(signInError.message)
           } else if (signInData.user) {
-            setUser({ id: signInData.user.id, email: signInData.user.email, role: role })
+            // Fetch the user's role after sign-in to ensure it's correct
+            const { data: roleData, error: fetchRoleError } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", signInData.user.id)
+              .single()
+
+            if (fetchRoleError) {
+              console.error("Error fetching user role after signup login:", fetchRoleError)
+              setUser({ id: signInData.user.id, email: signInData.user.email, role: "employee" }) // Default
+            } else {
+              setUser({ id: signInData.user.id, email: signInData.user.email, role: roleData.role })
+            }
             setMessage("")
           }
         }
@@ -303,7 +315,7 @@ function LoginPage({ setUser }: { setUser: any }) {
           setMessage("Login successful, but failed to fetch role. Please contact support.")
           setUser({ id: data.user.id, email: data.user.email, role: "employee" }) // Default to employee
         } else {
-          setUser({ id: data.user.id, email: roleData.role })
+          setUser({ id: data.user.id, email: data.user.email, role: roleData.role }) // Corrected: use roleData.role
           setMessage("")
         }
       }
