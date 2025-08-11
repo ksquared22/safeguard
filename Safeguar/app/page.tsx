@@ -423,23 +423,14 @@ function AdminDashboard({
   const supabase = createClient()
 
   const handleAddTraveler = async (
-    newTraveler: Omit<
+    newTravelers: (Omit<
       Traveler,
       "id" | "checked_in" | "checked_out" | "photo_url" | "check_in_time" | "check_out_time" | "notes"
-    > & { notes?: string | null; photo_url?: string | null },
+    > & { notes?: string | null; photo_url?: string | null })[], // Expect an array of travelers
   ) => {
-    const travelerToInsert = {
-      ...newTraveler,
-      person_id: newTraveler.name.toLowerCase().replace(/\s+/g, "-"), // Consistent person_id for new entries
-      checked_in: false,
-      checked_out: false,
-      photo_url: newTraveler.photo_url || null,
-      notes: newTraveler.notes || null,
-    }
-
-    const { error } = await supabase.from("travelers").insert([travelerToInsert])
+    const { error } = await supabase.from("travelers").insert(newTravelers) // Insert the array directly
     if (error) {
-      console.error("Error adding traveler:", error)
+      console.error("Error adding travelers:", error) // Updated log message
     } else {
       await fetchTravelers() // Re-fetch all data to update UI
     }
@@ -1057,9 +1048,10 @@ bold shadow-md inline-flex items-center"
 
 function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => void }) {
   const [name, setName] = useState("")
-  const [flightNumber, setFlightNumber] = useState("")
+  const [arrivalFlightNumber, setArrivalFlightNumber] = useState("")
+  const [arrivalTime, setArrivalTime] = useState("")
+  const [departureFlightNumber, setDepartureFlightNumber] = useState("")
   const [departureTime, setDepartureTime] = useState("")
-  const [travelerType, setTravelerType] = useState<Traveler["type"]>("departure")
   const [overnightHotel, setOvernightHotel] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -1067,21 +1059,37 @@ function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => 
     e.preventDefault()
     setLoading(true)
 
-    const newTraveler = {
+    const personId = name.toLowerCase().replace(/\s+/g, "-") // Consistent person_id for both segments
+
+    const arrivalTraveler = {
+      person_id: personId,
       name,
-      flight_number: flightNumber,
-      departure_time: departureTime,
-      type: travelerType,
-      overnight_hotel: travelerType === "arrival" ? overnightHotel : false,
-      notes: null, // New travelers start with no notes
-      photo_url: null, // New travelers start with no photo
+      flight_number: arrivalFlightNumber,
+      departure_time: arrivalTime, // This is arrival time for arrival segment
+      type: "arrival" as Traveler["type"],
+      overnight_hotel: overnightHotel,
+      notes: null,
+      photo_url: null,
     }
 
-    await onAddTraveler(newTraveler)
+    const departureTraveler = {
+      person_id: personId,
+      name,
+      flight_number: departureFlightNumber,
+      departure_time: departureTime, // This is departure time for departure segment
+      type: "departure" as Traveler["type"],
+      overnight_hotel: false, // Overnight hotel only applies to arrival
+      notes: null,
+      photo_url: null,
+    }
+
+    await onAddTraveler([arrivalTraveler, departureTraveler]) // Pass both segments
+
     setName("")
-    setFlightNumber("")
+    setArrivalFlightNumber("")
+    setArrivalTime("")
+    setDepartureFlightNumber("")
     setDepartureTime("")
-    setTravelerType("departure")
     setOvernightHotel(false)
     setLoading(false)
   }
@@ -1100,50 +1108,55 @@ function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => 
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="flight">Flight/Cruise Name</Label>
+              <Label htmlFor="arrivalFlight">Arrival Flight Name</Label>
               <Input
-                id="flight"
-                value={flightNumber}
-                onChange={(e) => setFlightNumber(e.target.value)}
+                id="arrivalFlight"
+                value={arrivalFlightNumber}
+                onChange={(e) => setArrivalFlightNumber(e.target.value)}
+                placeholder="e.g., Alaska Airlines 66"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="arrivalTime">Arrival Time/Date</Label>
+              <Input
+                id="arrivalTime"
+                value={arrivalTime}
+                onChange={(e) => setArrivalTime(e.target.value)}
+                placeholder="e.g., August 10, 10:33pm or TBD"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="departureFlight">Departure Flight Name</Label>
+              <Input
+                id="departureFlight"
+                value={departureFlightNumber}
+                onChange={(e) => setDepartureFlightNumber(e.target.value)}
                 placeholder="e.g., China Airlines 21 or Celebrity Summit 1"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="time">Time/Date</Label>
+              <Label htmlFor="departureTime">Departure Time/Date</Label>
               <Input
-                id="time"
+                id="departureTime"
                 value={departureTime}
                 onChange={(e) => setDepartureTime(e.target.value)}
                 placeholder="e.g., August 11, 01:40 or TBD"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="type">Traveler Type</Label>
-              <select
-                id="type"
-                value={travelerType}
-                onChange={(e) => setTravelerType(e.target.value as Traveler["type"])}
-                className="w-full p-2 border rounded-md"
-              >
-                <option value="departure">Departure Flight</option>
-                <option value="arrival">Arrival Flight</option>
-                <option value="cruise">Cruise</option>
-              </select>
+            <div className="flex items-center space-x-2 col-span-full">
+              <Input
+                id="overnight"
+                type="checkbox"
+                checked={overnightHotel}
+                onChange={(e) => setOvernightHotel(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="overnight">Overnight Hotel Required</Label>
             </div>
-            {travelerType === "arrival" && (
-              <div className="flex items-center space-x-2 col-span-full">
-                <Input
-                  id="overnight"
-                  type="checkbox"
-                  checked={overnightHotel}
-                  onChange={(e) => setOvernightHotel(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <Label htmlFor="overnight">Overnight Hotel Required</Label>
-              </div>
-            )}
           </div>
           <Button type="submit" disabled={loading}>
             {loading ? "Adding..." : "Add Traveler"}
