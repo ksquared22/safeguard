@@ -39,6 +39,10 @@ ALTER TABLE travelers ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own role" ON user_roles
   FOR SELECT USING (auth.uid() = user_id);
 
+-- New policy: Allow authenticated users to insert their own role
+CREATE POLICY "Allow authenticated users to insert their own role" ON user_roles
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
 -- Policies for travelers
 CREATE POLICY "Authenticated users can view travelers" ON travelers
   FOR SELECT USING (auth.role() = 'authenticated');

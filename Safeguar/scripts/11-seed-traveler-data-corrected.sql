@@ -1,18 +1,5 @@
--- Clear existing data and load the combined arrival and departure data
+-- Clear existing data before inserting new data
 DELETE FROM travelers;
-
--- Add 'person_id' and 'notes' columns if they don't exist
-ALTER TABLE travelers ADD COLUMN IF NOT EXISTS person_id TEXT;
-ALTER TABLE travelers ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'departure';
-ALTER TABLE travelers ADD COLUMN IF NOT EXISTS checked_out BOOLEAN DEFAULT FALSE;
-ALTER TABLE travelers ADD COLUMN IF NOT EXISTS overnight_hotel BOOLEAN DEFAULT FALSE;
-ALTER TABLE travelers ADD COLUMN IF NOT EXISTS check_in_time TIMESTAMP WITH TIME ZONE;
-ALTER TABLE travelers ADD COLUMN IF NOT EXISTS check_out_time TIMESTAMP WITH TIME ZONE;
-ALTER TABLE travelers ADD COLUMN IF NOT EXISTS notes TEXT;
-
--- Helper function to generate a consistent person_id from name
--- This is a simplified example; in a real DB, you'd manage person_ids more robustly
--- For demo purposes, we'll generate them directly in the inserts.
 
 -- Insert Arrival Travelers (Alaska Airlines)
 INSERT INTO travelers (person_id, name, flight_number, departure_time, checked_in, checked_out, photo_url, overnight_hotel, type, notes) VALUES
