@@ -50,6 +50,31 @@ export function Dashboard({
   const fetchTravelersByDate = useCallback(
     async (date: Date) => {
       try {
+        console.log("=== DATABASE DEBUG START ===")
+
+        // First, let's see what data exists in the travelers table
+        const { data: allTravelers, error: allError } = await supabase.from("travelers").select("*").limit(10)
+
+        if (allError) {
+          console.error("Error fetching all travelers for debug:", allError)
+          return
+        }
+
+        console.log("Sample travelers in database:", allTravelers)
+        console.log("Total travelers found:", allTravelers?.length || 0)
+
+        if (!allTravelers || allTravelers.length === 0) {
+          console.log("❌ NO DATA FOUND IN TRAVELERS TABLE")
+          setArrivalTravelers([])
+          setDepartureTravelers([])
+          setUniquePersons([])
+          return
+        }
+
+        // Show sample departure_time formats
+        const sampleDepartureTimes = allTravelers.slice(0, 5).map((t) => t.departure_time)
+        console.log("Sample departure_time formats:", sampleDepartureTimes)
+
         const monthNames = [
           "January",
           "February",
@@ -68,26 +93,45 @@ export function Dashboard({
         const month = monthNames[date.getMonth()]
         const day = date.getDate()
         const year = date.getFullYear()
-        const datePattern = `${month} ${day}, ${year}`
 
-        console.log(`Fetching travelers for date pattern: ${datePattern}`)
+        const datePatterns = [
+          `${month} ${day}, ${year}`, // "August 10, 2024"
+          `${month} ${day}`, // "August 10" (no year)
+          `${month.substring(0, 3)} ${day}`, // "Aug 10"
+        ]
 
-        const { data: arrivingTravelers, error: arrivalError } = await supabase
-          .from("travelers")
-          .select("*")
-          .eq("type", "arrival")
-          .ilike("departure_time", `${datePattern}%`)
-          .order("departure_time")
+        console.log("Trying date patterns:", datePatterns)
 
-        if (arrivalError) {
-          console.error("Error fetching arriving travelers:", arrivalError)
-          return
+        let arrivingTravelers: any[] = []
+
+        for (const pattern of datePatterns) {
+          console.log(`Trying pattern: "${pattern}"`)
+
+          const { data, error } = await supabase
+            .from("travelers")
+            .select("*")
+            .eq("type", "arrival")
+            .ilike("departure_time", `${pattern}%`)
+            .order("departure_time")
+
+          if (error) {
+            console.error(`Error with pattern "${pattern}":`, error)
+            continue
+          }
+
+          console.log(`Pattern "${pattern}" found ${data?.length || 0} travelers`)
+
+          if (data && data.length > 0) {
+            arrivingTravelers = data
+            console.log(`✅ SUCCESS with pattern: "${pattern}"`)
+            break
+          }
         }
 
-        console.log(`Found ${arrivingTravelers?.length || 0} arriving travelers for ${datePattern}`)
+        console.log(`Final result: ${arrivingTravelers.length} arriving travelers`)
 
-        if (!arrivingTravelers || arrivingTravelers.length === 0) {
-          console.log(`No arriving travelers found for date: ${datePattern}`)
+        if (arrivingTravelers.length === 0) {
+          console.log(`❌ No arriving travelers found for any date pattern on ${month} ${day}, ${year}`)
           setArrivalTravelers([])
           setDepartureTravelers([])
           setUniquePersons([])
@@ -96,16 +140,17 @@ export function Dashboard({
 
         // Get the person_ids of all arriving travelers
         const arrivingPersonIds = arrivingTravelers.map((t) => t.person_id).filter(Boolean)
+        console.log("Arriving person IDs:", arrivingPersonIds)
 
         // Now get ALL travelers (arrivals and departures) for these people
-        const { data: allRelatedTravelers, error: allError } = await supabase
+        const { data: allRelatedTravelers, error: allError2 } = await supabase
           .from("travelers")
           .select("*")
           .in("person_id", arrivingPersonIds)
           .order("departure_time")
 
-        if (allError) {
-          console.error("Error fetching all related travelers:", allError)
+        if (allError2) {
+          console.error("Error fetching all related travelers:", allError2)
           return
         }
 
@@ -118,8 +163,9 @@ export function Dashboard({
         setUniquePersons(uniquePersons)
 
         console.log(
-          `Processed data for ${datePattern}: ${arrivals.length} arrivals, ${departures.length} departures, ${uniquePersons.length} unique persons`,
+          `✅ FINAL RESULT: ${arrivals.length} arrivals, ${departures.length} departures, ${uniquePersons.length} unique persons`,
         )
+        console.log("=== DATABASE DEBUG END ===")
       } catch (error) {
         console.error("Error fetching travelers by date:", error)
       }
