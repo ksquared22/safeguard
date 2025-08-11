@@ -13,6 +13,7 @@ import { Plane, Users, Clock, LogOut, LogIn, MessageSquare } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase" // Import Supabase client
+import { useRouter } from "next/navigation" // Import useRouter for redirection
 
 console.log("App Page Component Loaded") // Added for debugging
 
@@ -178,6 +179,7 @@ export default function HomePage() {
 
     // Listen for auth state changes (e.g., login, logout)
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Auth state changed. Event:", _event, "Session:", session)
       if (session?.user) {
         // When auth state changes, re-fetch user role and travelers
         const fetchUserAndDataOnAuthChange = async () => {
@@ -191,12 +193,13 @@ export default function HomePage() {
             console.error("Error fetching user role on auth change:", roleError)
             setUser({ id: session.user.id, email: session.user.email, role: "employee" })
           } else {
-            setUser({ id: session.user.id, email: roleData.role }) // Corrected: use roleData.role
+            setUser({ id: session.user.id, email: session.user.email, role: roleData.role }) // Corrected: use roleData.role
           }
           await fetchTravelers()
         }
         fetchUserAndDataOnAuthChange()
       } else {
+        console.log("Auth state changed: User logged out or no session. Clearing local state.")
         setUser(null) // User logged out
         setArrivalTravelers([])
         setDepartureTravelers([])
@@ -334,7 +337,7 @@ function LoginPage({ setUser }: { setUser: any }) {
             </div>
           </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Traveler Management
+            Safeguard Management
           </CardTitle>
           <CardDescription className="text-lg text-gray-600 mt-2">
             {isRegistering ? "Create your account" : "Welcome back! Sign in to continue"}
@@ -430,6 +433,7 @@ function Dashboard({
 }) {
   const [userRole, setUserRole] = useState<"admin" | "employee">("admin")
   const supabase = createClient()
+  const router = useRouter() // Initialize useRouter
 
   useEffect(() => {
     if (user) {
@@ -438,11 +442,14 @@ function Dashboard({
   }, [user])
 
   const handleSignOut = async () => {
+    console.log("Attempting to sign out...")
     const { error } = await supabase.auth.signOut()
     if (error) {
       console.error("Error signing out:", error)
     } else {
+      console.log("Sign out successful. Clearing user state and redirecting.")
       setUser(null) // Clear user state on successful sign out
+      router.push("/") // Redirect to home page to force re-render and re-check auth
     }
   }
 
@@ -457,13 +464,13 @@ function Dashboard({
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                  Traveler Management
+                  Safeguard Management
                 </h1>
                 <Badge
                   variant="outline"
                   className="mt-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200"
                 >
-                  ✈️ August 11 Departures
+                  ✈️ August 11 Movements
                 </Badge>
               </div>
             </div>
@@ -588,13 +595,13 @@ function AdminDashboard({
           value="add-traveler"
           className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white rounded-lg font-medium transition-all duration-200"
         >
-          Add Traveler
+          Add Individual
         </TabsTrigger>
         <TabsTrigger
           value="manage"
           className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white rounded-lg font-medium transition-all duration-200"
         >
-          Manage Travelers
+          Manage Individuals
         </TabsTrigger>
         <TabsTrigger
           value="photos"
@@ -608,14 +615,14 @@ function AdminDashboard({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-blue-700">Total Travelers</CardTitle>
+              <CardTitle className="text-sm font-medium text-blue-700">Total Individuals</CardTitle>
               <div className="p-2 bg-blue-500 rounded-lg">
                 <Users className="h-4 w-4 text-white" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-blue-800">{totalTravelers}</div>
-              <p className="text-xs text-blue-600 mt-1">Unique travelers</p>
+              <p className="text-xs text-blue-600 mt-1">Unique individuals</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-emerald-50 to-green-100 border-0 shadow-lg">
@@ -624,7 +631,7 @@ function AdminDashboard({
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-emerald-800">{checkedInCount}</div>
-              <p className="text-xs text-emerald-600 mt-1">Travelers with at least one checked-in segment</p>
+              <p className="text-xs text-emerald-600 mt-1">Individuals with at least one checked-in segment</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-amber-50 to-orange-100 border-0 shadow-lg">
@@ -636,7 +643,7 @@ function AdminDashboard({
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-amber-800">{pendingCount}</div>
-              <p className="text-xs text-amber-600 mt-1">Travelers awaiting check-in</p>
+              <p className="text-xs text-amber-600 mt-1">Individuals awaiting check-in</p>
             </CardContent>
           </Card>
         </div>
@@ -723,14 +730,14 @@ function PhotoUploadSection({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Upload Traveler Photos</CardTitle>
-          <CardDescription>Add photos for traveler identification</CardDescription>
+          <CardTitle>Upload Individual Photos</CardTitle>
+          <CardDescription>Add photos for individual identification</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handlePhotoUpload} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="traveler">Select Traveler</Label>
+                <Label htmlFor="traveler">Select Individual</Label>
                 <select
                   id="traveler"
                   value={selectedPersonId}
@@ -738,7 +745,7 @@ function PhotoUploadSection({
                   className="w-full p-2 border rounded-md"
                   required
                 >
-                  <option value="">Choose a traveler...</option>
+                  <option value="">Choose a individual...</option>
                   {uniquePersons.map((person) => (
                     <option key={person.personId} value={person.personId}>
                       {person.name}
@@ -766,7 +773,7 @@ function PhotoUploadSection({
 
       <Card>
         <CardHeader>
-          <CardTitle>Travelers with Photos</CardTitle>
+          <CardTitle>Individuals with Photos</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -785,7 +792,7 @@ function PhotoUploadSection({
               ))}
             {uniquePersons.filter((p) => p.photo_url).length === 0 && (
               <div className="col-span-full text-center py-8 text-gray-500">
-                No photos uploaded yet. Use the form above to add traveler photos.
+                No photos uploaded yet. Use the form above to add individual photos.
               </div>
             )}
           </div>
@@ -875,16 +882,16 @@ function EmployeeDashboard({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-blue-700">Arrival Status</CardTitle>
+            <CardTitle className="text-blue-700">Incoming Status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-blue-800">Arrived:</span>
+                <span className="text-blue-800">Checked In:</span>
                 <Badge className="bg-blue-500 text-white">{checkedInArrivals}</Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-blue-800">Pending Arrival:</span>
+                <span className="text-blue-800">Pending Check-in:</span>
                 <Badge variant="secondary">{pendingArrivals}</Badge>
               </div>
             </div>
@@ -892,7 +899,7 @@ function EmployeeDashboard({
         </Card>
         <Card className="bg-gradient-to-br from-purple-50 to-pink-100 border-0 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-purple-700">Departure Status</CardTitle>
+            <CardTitle className="text-purple-700">Outgoing Status</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -901,11 +908,11 @@ function EmployeeDashboard({
                 <Badge className="bg-purple-500 text-white">{checkedInDepartures}</Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-purple-800">Departed:</span>
+                <span className="text-purple-800">Checked Out:</span>
                 <Badge className="bg-emerald-500 text-white">{checkedOutDepartures}</Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-purple-800">Pending Departure Check-in:</span>
+                <span className="text-purple-800">Pending Check-out:</span>
                 <Badge variant="secondary">{pendingDepartures}</Badge>
               </div>
             </div>
@@ -930,7 +937,7 @@ function EmployeeDashboard({
         </TabsList>
 
         <TabsContent value="arrivals">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Incoming Travelers</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Incoming Individuals</h2>
           <div className="space-y-6">
             {sortedArrivalFlights.map(([flightGroup, flightTravelers]) => (
               <Card key={flightGroup} className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
@@ -944,7 +951,7 @@ function EmployeeDashboard({
                     </div>
                     <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
                       <LogIn className="h-3 w-3 mr-1" />
-                      {flightTravelers.filter((t) => t.checked_in).length}/{flightTravelers.length} Arrived
+                      {flightTravelers.filter((t) => t.checked_in).length}/{flightTravelers.length} Checked In
                     </Badge>
                   </CardTitle>
                 </CardHeader>
@@ -971,7 +978,7 @@ function EmployeeDashboard({
         </TabsContent>
 
         <TabsContent value="departures">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Outgoing Travelers</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Outgoing Individuals</h2>
           <div className="space-y-6">
             {sortedDepartureFlights.map(([flightGroup, flightTravelers]) => (
               <Card key={flightGroup} className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
@@ -985,7 +992,7 @@ function EmployeeDashboard({
                     </div>
                     <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
                       <LogOut className="h-3 w-3 mr-1" />
-                      {flightTravelers.filter((t) => t.checked_out).length}/{flightTravelers.length} Departed
+                      {flightTravelers.filter((t) => t.checked_out).length}/{flightTravelers.length} Checked Out
                     </Badge>
                   </CardTitle>
                 </CardHeader>
@@ -1062,12 +1069,13 @@ bold shadow-md inline-flex items-center"
           )}
           {traveler.checked_in && traveler.check_in_time && (
             <p className="text-xs text-emerald-600 mt-1 font-medium">
-              {mode === "arrival" ? "✅ Arrived" : "✅ Checked In"}: {new Date(traveler.check_in_time).toLocaleString()}
+              {mode === "arrival" ? "✅ Checked In" : "✅ Checked In"}:{" "}
+              {new Date(traveler.check_in_time).toLocaleString()}
             </p>
           )}
           {traveler.checked_out && traveler.check_out_time && (
             <p className="text-xs text-purple-600 mt-1 font-medium">
-              ✈️ Departed: {new Date(traveler.check_out_time).toLocaleString()}
+              ✈️ Checked Out: {new Date(traveler.check_out_time).toLocaleString()}
             </p>
           )}
           {traveler.notes && (
@@ -1084,7 +1092,7 @@ bold shadow-md inline-flex items-center"
             onClick={() => onCheckIn(traveler.id, traveler.type)}
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-2 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105"
           >
-            Mark Arrived
+            Mark Checked In
           </Button>
         )}
         {mode !== "arrival" && !traveler.checked_in && (
@@ -1093,7 +1101,7 @@ bold shadow-md inline-flex items-center"
             onClick={() => onCheckIn(traveler.id, traveler.type)}
             className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-2 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105"
           >
-            Check In for Departure
+            Mark Checked In
           </Button>
         )}
         {mode !== "arrival" && traveler.checked_in && !traveler.checked_out && (
@@ -1102,7 +1110,7 @@ bold shadow-md inline-flex items-center"
             onClick={() => onCheckOut(traveler.id, traveler.type)}
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold py-2 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105"
           >
-            Mark Departed
+            Mark Checked Out
           </Button>
         )}
         {traveler.checked_in && mode === "arrival" && (
@@ -1110,7 +1118,7 @@ bold shadow-md inline-flex items-center"
             variant="default"
             className="w-full justify-center bg-gradient-to-r from-emerald-500 to-green-500 text-white py-2 rounded-lg shadow-md"
           >
-            ✓ Arrived
+            ✓ Checked In
           </Badge>
         )}
         {traveler.checked_out && mode !== "arrival" && (
@@ -1118,7 +1126,7 @@ bold shadow-md inline-flex items-center"
             variant="default"
             className="w-full justify-center bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-lg shadow-md"
           >
-            ✓ Departed
+            ✓ Checked Out
           </Badge>
         )}
         <Button
@@ -1136,7 +1144,7 @@ bold shadow-md inline-flex items-center"
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Note for {traveler.name}</DialogTitle>
-            <DialogDescription>Add or edit a note for this traveler.</DialogDescription>
+            <DialogDescription>Add or edit a note for this individual.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <Textarea
@@ -1209,8 +1217,8 @@ function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add New Traveler</CardTitle>
-        <CardDescription>Enter traveler name, flight, and time information</CardDescription>
+        <CardTitle>Add New Individual</CardTitle>
+        <CardDescription>Enter individual name, flight, and time information</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -1271,7 +1279,7 @@ function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => 
             </div>
           </div>
           <Button type="submit" disabled={loading}>
-            {loading ? "Adding..." : "Add Traveler"}
+            {loading ? "Adding..." : "Add Individual"}
           </Button>
         </form>
       </CardContent>
@@ -1291,8 +1299,8 @@ function PersonList({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>All Unique Travelers</CardTitle>
-        <CardDescription>Consolidated view of all travelers across arrival and departure segments.</CardDescription>
+        <CardTitle>All Unique Individuals</CardTitle>
+        <CardDescription>Consolidated view of all individuals across arrival and departure segments.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -1343,7 +1351,7 @@ function PersonList({
               </div>
             </div>
           ))}
-          {persons.length === 0 && <div className="text-center py-8 text-gray-500">No unique travelers found.</div>}
+          {persons.length === 0 && <div className="text-center py-8 text-gray-500">No unique individuals found.</div>}
         </div>
       </CardContent>
     </Card>
