@@ -19,7 +19,8 @@ console.log("App Page Component Loaded") // Added for debugging
 
 interface Traveler {
   id: string // Unique ID for this specific travel segment (e.g., "arr-1", "dep-1")
-  personId: string // Unique ID for the actual person
+  person_id?: string // DB column
+  personId: string // derived, used in UI
   name: string
   flight_number: string
   departure_time: string // This field now represents either arrival or departure time based on 'type'
@@ -54,11 +55,14 @@ const processTravelerData = (
 
   rawTravelers.forEach((traveler) => {
     // Ensure personId exists, if not, generate one (should ideally come from DB)
-    const personId = traveler.personId || `person-${traveler.name.toLowerCase().replace(/\s+/g, "-")}`
+    const rawPersonId = (traveler as any).person_id ?? (traveler as any).personId
+    const slugFromName = `person-${traveler.name.toLowerCase().replace(/\s+/g, "-")}`
+    const personId = rawPersonId ?? slugFromName
 
     const currentTravelerSegment: Traveler = {
       ...traveler,
-      personId: personId, // Ensure personId is set
+      personId,
+      person_id: (traveler as any).person_id ?? personId,
       overnight_hotel: traveler.overnight_hotel || false, // Default to false if undefined
       notes: traveler.notes || null, // Default to null if undefined
       check_in_time: traveler.check_in_time || null,
@@ -583,11 +587,17 @@ function AdminDashboard({
   }
 
   const handleDeletePerson = async (personIdToDelete: string) => {
-    const { error } = await supabase.from("travelers").delete().eq("person_id", personIdToDelete)
+    const { data: delRows, error } = await supabase
+      .from("travelers")
+      .delete()
+      .eq("person_id", personIdToDelete)
+      .select("id")
+
     if (error) {
       console.error("Error deleting person and their segments:", error)
     } else {
-      await fetchTravelers() // Re-fetch all data to update UI
+      console.log("Rows deleted:", delRows?.length ?? 0)
+      await fetchTravelers()
     }
   }
 
@@ -719,17 +729,20 @@ function PhotoUploadSection({
       console.log("Attempting to update traveler photo_url in DB:")
       console.log("  person_id:", selectedPersonId)
       console.log("  new photo_url:", publicUrl)
-      // Update the person in the database with the new photo URL
-      const { error: updateError } = await supabase
+      // 3. Update travelers table with photo URL
+      const { data: updateRows, error: updateError } = await supabase
         .from("travelers")
         .update({ photo_url: publicUrl })
-        .eq("person_id", selectedPersonId) // Update all segments for this person_id
+        .eq("person_id", selectedPersonId)
+        .select("id") // returns updated rows
 
       if (updateError) {
         console.error("Error updating photo URL in DB:", updateError)
       } else {
-        console.log("Photo URL updated in DB for person:", selectedPersonId)
-        // Update local state to reflect the change
+        console.log("Rows updated for photo_url:", updateRows?.length ?? 0)
+        if ((updateRows?.length ?? 0) === 0) {
+          console.warn("No rows matched person_id. Check selectedPersonId:", selectedPersonId)
+        }
         onUpdatePerson({ ...personToUpdate, photo_url: publicUrl })
       }
     }
@@ -1191,7 +1204,7 @@ function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => 
     e.preventDefault()
     setLoading(true)
 
-    const personId = name.toLowerCase().replace(/\s+/g, "-") // Consistent person_id for both segments
+    const personId = `person-${name.toLowerCase().replace(/\s+/g, "-")}`
 
     const arrivalTraveler = {
       person_id: personId,
