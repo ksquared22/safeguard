@@ -180,7 +180,15 @@ export default function HomePage() {
     // Listen for auth state changes (e.g., login, logout)
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log("Auth state changed. Event:", _event, "Session:", session)
-      if (session?.user) {
+      if (_event === "SIGNED_OUT") {
+        console.log("Auth state changed: SIGNED_OUT event detected. Clearing local state and redirecting.")
+        setUser(null) // Clear user state immediately
+        setArrivalTravelers([])
+        setDepartureTravelers([])
+        setUniquePersons([])
+        // Force a full page reload to ensure all client-side state is reset
+        window.location.href = "/"
+      } else if (session?.user) {
         // When auth state changes, re-fetch user role and travelers
         const fetchUserAndDataOnAuthChange = async () => {
           const { data: roleData, error: roleError } = await supabase
@@ -199,8 +207,8 @@ export default function HomePage() {
         }
         fetchUserAndDataOnAuthChange()
       } else {
-        console.log("Auth state changed: User logged out or no session. Clearing local state.")
-        setUser(null) // User logged out
+        console.log("Auth state changed: No session user. Setting user to null.")
+        setUser(null) // User logged out or no session
         setArrivalTravelers([])
         setDepartureTravelers([])
         setUniquePersons([])
@@ -447,9 +455,10 @@ function Dashboard({
     if (error) {
       console.error("Error signing out:", error)
     } else {
-      console.log("Sign out successful. Clearing user state and redirecting.")
-      setUser(null) // Clear user state on successful sign out
-      router.push("/") // Redirect to home page to force re-render and re-check auth
+      console.log("Sign out successful. Triggering full page reload.")
+      setUser(null) // Clear user state immediately
+      // Force a full page reload to ensure all client-side state is reset
+      window.location.href = "/"
     }
   }
 
@@ -707,6 +716,9 @@ function PhotoUploadSection({
 
     const personToUpdate = uniquePersons.find((p) => p.personId === selectedPersonId)
     if (personToUpdate) {
+      console.log("Attempting to update traveler photo_url in DB:")
+      console.log("  person_id:", selectedPersonId)
+      console.log("  new photo_url:", publicUrl)
       // Update the person in the database with the new photo URL
       const { error: updateError } = await supabase
         .from("travelers")
