@@ -45,6 +45,30 @@ interface Person {
   isAnySegmentCheckedOut: boolean
 }
 
+function sanitizeSlug(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+function normalizePersonIdFromName(name: string) {
+  const slug = sanitizeSlug(name)
+  return `person-${slug}`
+}
+
+function normalizePersonId(idOrName: string) {
+  const raw = (idOrName || "").trim()
+  if (raw.startsWith("person-")) {
+    const rest = raw.slice(7)
+    return `person-${sanitizeSlug(rest)}`
+  }
+  return normalizePersonIdFromName(raw)
+}
+
 // Function to process raw data (fetched from DB) into structured arrival/departure lists and unique persons
 const processTravelerData = (
   rawTravelers: Traveler[],
@@ -587,11 +611,23 @@ function AdminDashboard({
   }
 
   const handleDeletePerson = async (personIdToDelete: string) => {
-    const { data: delRows, error } = await supabase
-      .from("travelers")
-      .delete()
-      .eq("person_id", personIdToDelete)
-      .select("id")
+    const canonicalId = normalizePersonId(personIdToDelete)
+    const candidates = Array.from(
+      new Set([
+        canonicalId,
+        canonicalId.replace(/^person-/, ""),
+        canonicalId.replace(/-+$/, ""),
+        canonicalId.replace(/^person-/, "").replace(/-+$/, ""),
+      ]),
+    )
+
+    let { data: delRows, error } = await supabase.from("travelers").delete().eq("person_id", canonicalId).select("id")
+
+    if (!error && (delRows?.length ?? 0) === 0) {
+      const alt = await supabase.from("travelers").delete().in("person_id", candidates).select("id")
+      delRows = alt.data
+      error = alt.error
+    }
 
     if (error) {
       console.error("Error deleting person and their segments:", error)
@@ -701,10 +737,22 @@ function PhotoUploadSection({
     e.preventDefault()
     if (!selectedPersonId || !photo) return
 
+    const canonicalId = normalizePersonId(selectedPersonId)
+    const candidates = Array.from(
+      new Set([
+        canonicalId,
+        canonicalId.replace(/^person-/, ""), // no prefix
+        canonicalId.replace(/-+$/, ""), // trimmed trailing hyphens
+        canonicalId
+          .replace(/^person-/, "")
+          .replace(/-+$/, ""), // no prefix + trimmed
+      ]),
+    )
+
     setLoading(true)
 
     const fileExt = photo.name.split(".").pop()
-    const filePath = `${selectedPersonId}-${Date.now()}.${fileExt}`
+    const filePath = `${canonicalId}-${Date.now()}.${fileExt}`
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from("traveler-photos")
@@ -729,20 +777,37 @@ function PhotoUploadSection({
       console.log("Attempting to update traveler photo_url in DB:")
       console.log("  person_id:", selectedPersonId)
       console.log("  new photo_url:", publicUrl)
-      // 3. Update travelers table with photo URL
-      const { data: updateRows, error: updateError } = await supabase
+
+      // First try canonicalId
+      let { data: updateRows, error: updateError } = await supabase
         .from("travelers")
         .update({ photo_url: publicUrl })
-        .eq("person_id", selectedPersonId)
-        .select("id") // returns updated rows
+        .eq("person_id", canonicalId)
+        .select("id")
 
       if (updateError) {
-        console.error("Error updating photo URL in DB:", updateError)
-      } else {
-        console.log("Rows updated for photo_url:", updateRows?.length ?? 0)
-        if ((updateRows?.length ?? 0) === 0) {
-          console.warn("No rows matched person_id. Check selectedPersonId:", selectedPersonId)
+        console.error("Error updating photo URL (canonical):", updateError)
+      }
+
+      if (!updateError && (updateRows?.length ?? 0) === 0) {
+        // Fallback try a set of candidates to handle legacy rows
+        const { data: updateRows2, error: updateError2 } = await supabase
+          .from("travelers")
+          .update({ photo_url: publicUrl })
+          .in("person_id", candidates)
+          .select("id")
+
+        if (updateError2) {
+          console.error("Error updating photo URL (fallback):", updateError2)
+        } else {
+          updateRows = updateRows2
         }
+      }
+
+      console.log("Rows updated for photo_url:", updateRows?.length ?? 0)
+      if ((updateRows?.length ?? 0) === 0) {
+        console.warn("No rows matched person_id candidates:", candidates)
+      } else {
         onUpdatePerson({ ...personToUpdate, photo_url: publicUrl })
       }
     }
@@ -1204,7 +1269,7 @@ function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => 
     e.preventDefault()
     setLoading(true)
 
-    const personId = `person-${name.toLowerCase().replace(/\s+/g, "-")}`
+    const personId = normalizePersonIdFromName(name)
 
     const arrivalTraveler = {
       person_id: personId,
