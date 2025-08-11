@@ -428,10 +428,12 @@ function AdminDashboard({
       "id" | "checked_in" | "checked_out" | "photo_url" | "check_in_time" | "check_out_time" | "notes"
     > & { notes?: string | null; photo_url?: string | null })[], // Expect an array of travelers
   ) => {
+    console.log("Attempting to add new travelers:", newTravelers) // Log data before insert
     const { error } = await supabase.from("travelers").insert(newTravelers) // Insert the array directly
     if (error) {
-      console.error("Error adding travelers:", error) // Updated log message
+      console.error("Error adding travelers to Supabase:", error) // Updated log message with error object
     } else {
+      console.log("Travelers added successfully. Re-fetching data...") // Success log
       await fetchTravelers() // Re-fetch all data to update UI
     }
   }
