@@ -4,11 +4,15 @@ import type React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plane } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
 import { createClient } from "@/lib/supabase"
 import { AdminDashboard } from "./AdminDashboard"
 import { EmployeeDashboard } from "./EmployeeDashboard"
 import type { Traveler, Person, User } from "@/types/traveler"
+import { cn } from "@/lib/utils"
 
 interface DashboardProps {
   user: User
@@ -34,11 +38,80 @@ export function Dashboard({
   fetchTravelers,
 }: DashboardProps) {
   const [userRole, setUserRole] = useState<"admin" | "employee">(user.role)
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     setUserRole(user.role)
   }, [user.role])
+
+  const fetchTravelersByDate = useCallback(
+    async (date: Date) => {
+      try {
+        const dateStr = format(date, "yyyy-MM-dd")
+        const { data: travelers, error } = await supabase
+          .from("travelers")
+          .select("*")
+          .like("departure_time", `${dateStr}%`)
+          .order("departure_time")
+
+        if (error) {
+          console.error("Error fetching travelers by date:", error)
+          return
+        }
+
+        // Process and separate arrivals/departures
+        const arrivals = travelers?.filter((t) => t.type === "arrival") || []
+        const departures = travelers?.filter((t) => t.type === "departure" || t.type === "cruise") || []
+
+        setArrivalTravelers(arrivals)
+        setDepartureTravelers(departures)
+
+        // Update unique persons
+        const personMap = new Map<string, Person>()
+        travelers?.forEach((traveler) => {
+          const personId = traveler.person_id || `person-${traveler.name.toLowerCase().replace(/\s+/g, "-")}`
+
+          if (!personMap.has(personId)) {
+            personMap.set(personId, {
+              personId,
+              name: traveler.name,
+              photo_url: traveler.photo_url,
+              notes: traveler.notes,
+              arrivalSegments: [],
+              departureSegments: [],
+              isAnySegmentCheckedIn: false,
+              isAnySegmentCheckedOut: false,
+            })
+          }
+
+          const person = personMap.get(personId)!
+          if (traveler.type === "arrival") {
+            person.arrivalSegments.push(traveler)
+          } else {
+            person.departureSegments.push(traveler)
+          }
+        })
+
+        const uniquePersons = Array.from(personMap.values()).map((p) => {
+          p.isAnySegmentCheckedIn =
+            p.arrivalSegments.some((s) => s.checked_in) || p.departureSegments.some((s) => s.checked_in)
+          p.isAnySegmentCheckedOut = p.departureSegments.some((s) => s.checked_out)
+          return p
+        })
+
+        setUniquePersons(uniquePersons)
+      } catch (error) {
+        console.error("Error fetching travelers by date:", error)
+      }
+    },
+    [supabase, setArrivalTravelers, setDepartureTravelers, setUniquePersons],
+  )
+
+  useEffect(() => {
+    fetchTravelersByDate(selectedDate)
+  }, [selectedDate, fetchTravelersByDate])
 
   const handleSignOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut()
@@ -56,21 +129,43 @@ export function Dashboard({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-3 sm:py-4">
             <div className="flex items-center space-x-3 sm:space-x-4">
-              <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-md">
-                <Plane className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-              </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                   Safeguard Management
                 </h1>
-                <Badge
-                  variant="outline"
-                  className="mt-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200 text-xs sm:text-sm"
-                >
-                  ✈️ August 11 Movements
-                </Badge>
               </div>
             </div>
+
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[200px] sm:w-[240px] justify-start text-left font-normal bg-white/60 hover:bg-white/80 border-gray-200 hover:border-gray-300",
+                      !selectedDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setSelectedDate(date)
+                        setIsCalendarOpen(false)
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
             <div className="flex items-center space-x-2 sm:space-x-3">
               <Badge
                 variant="secondary"
@@ -104,7 +199,7 @@ export function Dashboard({
             setUniquePersons={setUniquePersons}
             setArrivalTravelers={setArrivalTravelers}
             setDepartureTravelers={setDepartureTravelers}
-            fetchTravelers={fetchTravelers}
+            fetchTravelers={() => fetchTravelersByDate(selectedDate)}
           />
         ) : (
           <EmployeeDashboard
@@ -112,7 +207,7 @@ export function Dashboard({
             setArrivalTravelers={setArrivalTravelers}
             departureTravelers={departureTravelers}
             setDepartureTravelers={setDepartureTravelers}
-            fetchTravelers={fetchTravelers}
+            fetchTravelers={() => fetchTravelersByDate(selectedDate)}
           />
         )}
       </main>
