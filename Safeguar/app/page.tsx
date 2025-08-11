@@ -140,17 +140,74 @@ export default function HomePage() {
   }, [supabase])
 
   useEffect(() => {
-    // Simulate user loading and then fetch data
     const loadUserAndData = async () => {
-      // Simulate authentication for preview
-      setTimeout(() => {
-        setUser({ id: "demo-user", email: "admin@demo.com", role: "admin" }) // Default to admin for easier testing
-      }, 500) // Shorter timeout for faster loading
+      // Get the current session
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession()
+
+      if (sessionError) {
+        console.error("Error getting session:", sessionError)
+        setLoading(false)
+        return
+      }
+
+      if (session?.user) {
+        // Fetch the user's role from the user_roles table
+        const { data: roleData, error: roleError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single()
+
+        if (roleError) {
+          console.error("Error fetching user role:", roleError)
+          // Default to employee if role fetch fails
+          setUser({ id: session.user.id, email: session.user.email, role: "employee" })
+        } else {
+          setUser({ id: session.user.id, email: session.user.email, role: roleData.role })
+        }
+      } else {
+        setUser(null) // No active session, user is not logged in
+      }
 
       await fetchTravelers()
     }
     loadUserAndData()
-  }, [fetchTravelers])
+
+    // Listen for auth state changes (e.g., login, logout)
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        // When auth state changes, re-fetch user role and travelers
+        const fetchUserAndDataOnAuthChange = async () => {
+          const { data: roleData, error: roleError } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .single()
+
+          if (roleError) {
+            console.error("Error fetching user role on auth change:", roleError)
+            setUser({ id: session.user.id, email: session.user.email, role: "employee" })
+          } else {
+            setUser({ id: session.user.id, email: session.user.email, role: roleData.role })
+          }
+          await fetchTravelers()
+        }
+        fetchUserAndDataOnAuthChange()
+      } else {
+        setUser(null) // User logged out
+        setArrivalTravelers([])
+        setDepartureTravelers([])
+        setUniquePersons([])
+      }
+    })
+
+    return () => {
+      authListener?.unsubscribe() // Clean up the listener
+    }
+  }, [supabase, fetchTravelers, setArrivalTravelers, setDepartureTravelers, setUniquePersons])
 
   if (loading) {
     return (
@@ -246,7 +303,7 @@ function LoginPage({ setUser }: { setUser: any }) {
           setMessage("Login successful, but failed to fetch role. Please contact support.")
           setUser({ id: data.user.id, email: data.user.email, role: "employee" }) // Default to employee
         } else {
-          setUser({ id: data.user.id, email: data.user.email, role: roleData.role })
+          setUser({ id: data.user.id, email: roleData.role })
           setMessage("")
         }
       }
@@ -360,14 +417,21 @@ function Dashboard({
   fetchTravelers: () => Promise<void>
 }) {
   const [userRole, setUserRole] = useState<"admin" | "employee">("admin")
+  const supabase = createClient()
 
   useEffect(() => {
-    const role = user.email.includes("admin") ? "admin" : "employee"
-    setUserRole(role)
-  }, [user.email])
+    if (user) {
+      setUserRole(user.role) // Directly use the role from the user object
+    }
+  }, [user])
 
-  const handleSignOut = () => {
-    setUser(null)
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      console.error("Error signing out:", error)
+    } else {
+      setUser(null) // Clear user state on successful sign out
+    }
   }
 
   return (
