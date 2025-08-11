@@ -6,15 +6,24 @@ export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  console.log("Supabase URL:", supabaseUrl ? "Set" : "Not Set")
-  console.log("Supabase Key:", supabaseKey ? "Set" : "Not Set")
-  // For debugging, you can uncomment the following lines to see the actual values (be cautious with sensitive data in logs)
-  // console.log("Actual Supabase URL:", supabaseUrl)
-  // console.log("Actual Supabase Key (first 5 chars):", supabaseKey ? supabaseKey.substring(0, 5) + '...' : 'Not Set')
+  console.log("[Supabase Client Init] Supabase URL (from env):", supabaseUrl ? "Set" : "NOT SET")
+  console.log("[Supabase Client Init] Supabase Key (from env):", supabaseKey ? "Set" : "NOT SET")
 
-  // If environment variables are not set or are invalid, return a mock client for preview mode
+  // Check if environment variables are properly configured
   if (!supabaseUrl || !supabaseKey || !supabaseUrl.startsWith("http")) {
-    console.warn("Supabase environment variables are not properly configured or URL is invalid. Using mock client.")
+    console.error("--- Supabase Configuration Error ---")
+    console.error("Supabase environment variables are NOT properly configured or URL is invalid.")
+    console.error("Please ensure the following are set in your Vercel Project Environment Variables:")
+    console.error("  1. NEXT_PUBLIC_SUPABASE_URL (e.g., https://your-project-ref.supabase.co)")
+    console.error("  2. NEXT_PUBLIC_SUPABASE_ANON_KEY (your public anon key)")
+    console.error("Current NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl)
+    console.error(
+      "Current NEXT_PUBLIC_SUPABASE_ANON_KEY (first 5 chars):",
+      supabaseKey ? supabaseKey.substring(0, 5) + "..." : "Not Set",
+    )
+    console.error("------------------------------------")
+
+    // Return a mock client for preview mode or misconfiguration
     return {
       auth: {
         getUser: () => Promise.resolve({ data: { user: null }, error: null }),
@@ -46,6 +55,7 @@ export function createClient() {
         detectSessionInUrl: false,
       },
     })
+    console.log("[Supabase Client Init] Supabase client initialized successfully.")
   }
   return supabaseInstance
 }
