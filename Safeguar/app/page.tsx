@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Plane, LogIn, MessageSquare, Hotel, LogOutIcon } from "lucide-react"
+import { Plane, LogIn, MessageSquare, Hotel, LogOutIcon, LayoutDashboard, UserPlus, Users, ImageUp } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase"
@@ -307,24 +307,26 @@ function LoginPage({ setUser }: { setUser: any }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 via-purple-400/10 to-pink-400/10" />
-      <Card className="w-full max-w-md relative z-10 shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-        <CardHeader className="text-center pb-6">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full shadow-md">
-              <Plane className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 via-purple-400/20 to-pink-400/20"></div>
+      <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader className="text-center pb-8">
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full shadow-lg">
+              <Plane className="h-12 w-12 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-800">Safeguard Management</CardTitle>
-          <CardDescription className="text-sm text-gray-600 mt-1">
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Safeguard Management
+          </CardTitle>
+          <CardDescription className="text-lg text-gray-600 mt-2">
             {isRegistering ? "Create your account" : "Welcome back! Sign in to continue"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div className="space-y-1">
-              <Label htmlFor="email" className="text-gray-700 text-sm">
+        <CardContent className="space-y-6">
+          <form onSubmit={handleAuth} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-gray-700 font-medium">
                 Email Address
               </Label>
               <Input
@@ -333,12 +335,12 @@ function LoginPage({ setUser }: { setUser: any }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@demo.com or employee@demo.com"
-                className="h-11"
+                className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl"
                 required
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="password" className="text-gray-700 text-sm">
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-gray-700 font-medium">
                 Password
               </Label>
               <Input
@@ -347,18 +349,30 @@ function LoginPage({ setUser }: { setUser: any }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="demo123"
-                className="h-11"
+                className="h-12 border-2 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl"
                 required
                 minLength={6}
               />
             </div>
             {message && (
-              <div className="p-2.5 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">{message}</div>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{message}</div>
             )}
-            <Button type="submit" className="w-full h-11" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+            <Button
+              type="submit"
+              className="w-full h-12 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Signing in...</span>
+                </div>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </form>
+
           <div className="text-center">
             <Button
               variant="link"
@@ -366,7 +380,7 @@ function LoginPage({ setUser }: { setUser: any }) {
                 setIsRegistering(!isRegistering)
                 setMessage("")
               }}
-              className="text-indigo-600 hover:text-indigo-700 font-medium"
+              className="text-blue-600 hover:text-blue-700 font-medium"
             >
               {isRegistering ? "Already have an account? Sign in" : "Need an account? Register here"}
             </Button>
@@ -392,7 +406,8 @@ function Dashboard({
   setUser: any
   arrivalTravelers: Traveler[]
   setArrivalTravelers: React.Dispatch<React.SetStateAction<Traveler[]>>
-  departureTravelers: React.Dispatch<React.SetStateAction<Traveler[]>>
+  departureTravelers: Traveler[]
+  setDepartureTravelers: React.Dispatch<React.SetStateAction<Traveler[]>>
   uniquePersons: Person[]
   setUniquePersons: React.Dispatch<React.SetStateAction<Person[]>>
   fetchTravelers: () => Promise<void>
@@ -416,34 +431,45 @@ function Dashboard({
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur supports-[backdrop-filter]:backdrop-blur border-b">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md shadow-lg border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-md shadow-sm">
-                <Plane className="h-6 w-6 text-white" />
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-md">
+                <Plane className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-lg sm:text-xl font-semibold text-gray-800">Safeguard Management</h1>
-                <span className="inline-flex items-center gap-1 text-xs text-gray-600">✈️ August 11 Movements</span>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                  Safeguard Management
+                </h1>
+                <Badge
+                  variant="outline"
+                  className="mt-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border-emerald-200"
+                >
+                  ✈️ August 11 Movements
+                </Badge>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center space-x-3">
               <Badge
                 variant="secondary"
-                className={`hidden sm:inline-flex px-2.5 py-1 ${
+                className={`px-3 py-1 ${
                   userRole === "admin"
-                    ? "bg-purple-100 text-purple-700 border-purple-200"
-                    : "bg-blue-100 text-blue-700 border-blue-200"
+                    ? "bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border-purple-200"
+                    : "bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 border-blue-200"
                 }`}
               >
-                {userRole === "admin" ? "Administrator" : "Employee"}
+                {userRole === "admin" ? "👑 Administrator" : "👤 Employee"}
               </Badge>
-              <span className="hidden md:inline text-sm text-gray-600 bg-gray-50 px-2.5 py-1 rounded-full">
+              <span className="hidden sm:inline text-sm text-gray-600 bg-white/60 px-3 py-1 rounded-full">
                 {user.email}
               </span>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <Button
+                variant="outline"
+                onClick={handleSignOut}
+                className="bg-white/60 hover:bg-white/80 border-gray-200 hover:border-gray-300 transition-all duration-200"
+              >
                 Sign Out
               </Button>
             </div>
@@ -451,7 +477,7 @@ function Dashboard({
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6">
         {userRole === "admin" ? (
           <AdminDashboard
             uniquePersons={uniquePersons}
@@ -551,54 +577,82 @@ function AdminDashboard({
   }
 
   return (
-    <Tabs value={adminTab} onValueChange={(v) => setAdminTab(v as any)} className="space-y-4 sm:space-y-6">
-      <TabsList className="sticky top-[56px] sm:top-[64px] z-40 bg-white/95 backdrop-blur border rounded-lg p-1 overflow-x-auto whitespace-nowrap w-full">
-        <TabsTrigger value="overview" className="rounded-md">
+    <Tabs value={adminTab} onValueChange={(v) => setAdminTab(v as any)} className="space-y-6">
+      {/* Colorful, modern Tabs */}
+      <TabsList className="sticky top-[72px] sm:top-[80px] z-40 w-full overflow-x-auto whitespace-nowrap rounded-xl p-1.5 bg-gradient-to-r from-white/80 via-white/60 to-white/80 backdrop-blur-md shadow-md border border-white/50">
+        <TabsTrigger
+          value="overview"
+          className="rounded-lg data-[state=active]:text-white data-[state=active]:shadow data-[state=active]:shadow-blue-300/40 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 px-3 py-2 text-gray-700"
+        >
+          <LayoutDashboard className="h-4 w-4 mr-2" />
           Overview
         </TabsTrigger>
-        <TabsTrigger value="add-traveler" className="rounded-md">
+        <TabsTrigger
+          value="add-traveler"
+          className="rounded-lg data-[state=active]:text-white data-[state=active]:shadow data-[state=active]:shadow-emerald-300/40 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 px-3 py-2 text-gray-700"
+        >
+          <UserPlus className="h-4 w-4 mr-2" />
           Add Individual
         </TabsTrigger>
-        <TabsTrigger value="manage" className="rounded-md">
-          Manage Individuals
+        <TabsTrigger
+          value="manage"
+          className="rounded-lg data-[state=active]:text-white data-[state=active]:shadow data-[state=active]:shadow-amber-300/40 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-600 px-3 py-2 text-gray-700"
+        >
+          <Users className="h-4 w-4 mr-2" />
+          Manage
         </TabsTrigger>
-        <TabsTrigger value="photos" className="rounded-md">
-          Upload Photos
+        <TabsTrigger
+          value="photos"
+          className="rounded-lg data-[state=active]:text-white data-[state=active]:shadow data-[state=active]:shadow-purple-300/40 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-600 px-3 py-2 text-gray-700"
+        >
+          <ImageUp className="h-4 w-4 mr-2" />
+          Upload
         </TabsTrigger>
       </TabsList>
 
+      {/* Colorful Summary Cards */}
       <TabsContent value="overview">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-4 sm:mb-6">
-          <Card className="border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">Total Individuals</CardTitle>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-100">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-blue-700">Total Individuals</CardTitle>
+              <div className="p-2 bg-blue-500 rounded-lg">
+                <Users className="h-4 w-4 text-white" />
+              </div>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl sm:text-3xl font-bold text-gray-900">{totalTravelers}</div>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-800">{totalTravelers}</div>
+              <p className="text-xs text-blue-700/80 mt-1">Unique persons</p>
             </CardContent>
           </Card>
-          <Card className="border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">Checked In</CardTitle>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-50 to-green-100">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-emerald-700">Checked In</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl sm:text-3xl font-bold text-emerald-700">{checkedInCount}</div>
+            <CardContent>
+              <div className="text-3xl font-bold text-emerald-800">{checkedInCount}</div>
+              <p className="text-xs text-emerald-700/80 mt-1">At least one segment</p>
             </CardContent>
           </Card>
-          <Card className="border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">Pending</CardTitle>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-50 to-orange-100">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-amber-700">Pending</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl sm:text-3xl font-bold text-amber-700">{pendingCount}</div>
+            <CardContent>
+              <div className="text-3xl font-bold text-amber-800">{pendingCount}</div>
+              <p className="text-xs text-amber-700/80 mt-1">Awaiting check-in</p>
             </CardContent>
           </Card>
-          <Card className="border shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">Departed</CardTitle>
+
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-pink-100">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-purple-700">Departed</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl sm:text-3xl font-bold text-purple-700">{departedCount}</div>
+            <CardContent>
+              <div className="text-3xl font-bold text-purple-800">{departedCount}</div>
+              <p className="text-xs text-purple-700/80 mt-1">Marked checked out</p>
             </CardContent>
           </Card>
         </div>
@@ -697,22 +751,24 @@ function PhotoUploadSection({
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <Card className="border">
+    <div className="space-y-6">
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-100">
         <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Upload Individual Photos</CardTitle>
-          <CardDescription>Add photos for individual identification</CardDescription>
+          <CardTitle className="text-blue-800">Upload Individual Photos</CardTitle>
+          <CardDescription className="text-blue-700/80">Add photos for individual identification</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handlePhotoUpload} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="traveler">Select Individual</Label>
+                <Label htmlFor="traveler" className="text-blue-900/80">
+                  Select Individual
+                </Label>
                 <select
                   id="traveler"
                   value={selectedPersonId}
                   onChange={(e) => setSelectedPersonId(e.target.value)}
-                  className="w-full p-2 border rounded-md"
+                  className="w-full p-2 border rounded-md bg-white"
                   required
                 >
                   <option value="">Choose an individual...</option>
@@ -724,7 +780,9 @@ function PhotoUploadSection({
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="photo">Photo</Label>
+                <Label htmlFor="photo" className="text-blue-900/80">
+                  Photo
+                </Label>
                 <Input
                   id="photo"
                   type="file"
@@ -734,23 +792,27 @@ function PhotoUploadSection({
                 />
               </div>
             </div>
-            <Button type="submit" disabled={loading || !selectedPersonId || !photo}>
+            <Button
+              type="submit"
+              disabled={loading || !selectedPersonId || !photo}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+            >
               {loading ? "Uploading..." : "Upload Photo"}
             </Button>
           </form>
         </CardContent>
       </Card>
 
-      <Card className="border">
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-pink-100">
         <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Individuals with Photos</CardTitle>
+          <CardTitle className="text-purple-900">Individuals with Photos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {uniquePersons
               .filter((p) => p.photo_url)
               .map((person) => (
-                <div key={person.personId} className="border rounded-lg p-3 text-center">
+                <div key={person.personId} className="border rounded-lg p-3 text-center bg-white/80 backdrop-blur">
                   <img
                     src={person.photo_url || "/placeholder.svg"}
                     alt={person.name}
@@ -761,7 +823,7 @@ function PhotoUploadSection({
                 </div>
               ))}
             {uniquePersons.filter((p) => p.photo_url).length === 0 && (
-              <div className="col-span-full text-center py-8 text-gray-500">No photos uploaded yet.</div>
+              <div className="col-span-full text-center py-8 text-gray-600">No photos uploaded yet.</div>
             )}
           </div>
         </CardContent>
@@ -843,81 +905,87 @@ function EmployeeDashboard({
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Status cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-        <Card className="border">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-xs text-gray-600">Arrivals Checked In</CardTitle>
+    <div className="space-y-6">
+      {/* Colorful Employee status cards */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-blue-700">Arrivals Checked In</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl sm:text-2xl font-semibold text-blue-700">{checkedInArrivals}</div>
-            <div className="text-xs text-gray-500">{pendingArrivals} pending</div>
+            <div className="text-3xl font-bold text-blue-900">{checkedInArrivals}</div>
+            <div className="text-xs text-blue-700/80">{pendingArrivals} pending</div>
           </CardContent>
         </Card>
-        <Card className="border">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-xs text-gray-600">Departures Checked In</CardTitle>
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-purple-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-indigo-700">Departures Checked In</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl sm:text-2xl font-semibold text-indigo-700">{checkedInDepartures}</div>
-            <div className="text-xs text-gray-500">{pendingDepartures} pending</div>
+            <div className="text-3xl font-bold text-indigo-900">{checkedInDepartures}</div>
+            <div className="text-xs text-indigo-700/80">{pendingDepartures} pending</div>
           </CardContent>
         </Card>
-        <Card className="border">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-xs text-gray-600">Checked Out</CardTitle>
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-50 to-green-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-emerald-700">Checked Out</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl sm:text-2xl font-semibold text-emerald-700">{checkedOutDepartures}</div>
-            <div className="text-xs text-gray-500">Departures</div>
+            <div className="text-3xl font-bold text-emerald-900">{checkedOutDepartures}</div>
+            <div className="text-xs text-emerald-700/80">Departures</div>
           </CardContent>
         </Card>
-        <Card className="border">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-xs text-gray-600">Total Flights</CardTitle>
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-50 to-orange-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-amber-700">Total Flights</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl sm:text-2xl font-semibold text-gray-800">
+            <div className="text-3xl font-bold text-amber-900">
               {sortedArrivalFlights.length + sortedDepartureFlights.length}
             </div>
-            <div className="text-xs text-gray-500">Arrival + Departure</div>
+            <div className="text-xs text-amber-700/80">Arrival + Departure</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Controlled Tabs, sticky on mobile, scrollable */}
+      {/* Controlled, colorful Tabs */}
       <Tabs value={empTab} onValueChange={(v) => setEmpTab(v as any)} className="space-y-4">
-        <TabsList className="sticky top-[56px] sm:top-[64px] z-40 bg-white/95 backdrop-blur border rounded-lg p-1 overflow-x-auto whitespace-nowrap">
-          <TabsTrigger value="arrivals" className="rounded-md">
+        <TabsList className="sticky top-[72px] sm:top-[80px] z-40 bg-gradient-to-r from-white/80 via-white/60 to-white/80 backdrop-blur-md shadow-md border border-white/60 rounded-xl p-1.5 overflow-x-auto whitespace-nowrap">
+          <TabsTrigger
+            value="arrivals"
+            className="rounded-lg data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 px-3 py-2 text-gray-700"
+          >
             Arrivals
           </TabsTrigger>
-          <TabsTrigger value="departures" className="rounded-md">
+          <TabsTrigger
+            value="departures"
+            className="rounded-lg data-[state=active]:text-white data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-600 px-3 py-2 text-gray-700"
+          >
             Departures
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="arrivals">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">Incoming Individuals</h2>
-          <div className="space-y-3 sm:space-y-4">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Incoming Individuals</h2>
+          <div className="space-y-4">
             {sortedArrivalFlights.map(([flightGroup, flightTravelers]) => (
-              <Card key={flightGroup} className="border">
-                <CardHeader className="py-3 sm:py-4">
-                  <CardTitle className="flex items-center justify-between text-blue-700 text-sm sm:text-base">
+              <Card key={flightGroup} className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between text-blue-700">
                     <div>
-                      <span className="font-medium">{flightTravelers[0]?.flight_number}</span>
-                      <div className="text-[11px] sm:text-xs font-normal text-gray-600 mt-1">
+                      <span>{flightTravelers[0]?.flight_number}</span>
+                      <div className="text-sm font-normal text-gray-500 mt-1">
                         Arrival: {flightTravelers[0]?.departure_time}
                       </div>
                     </div>
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200">
                       <LogIn className="h-3 w-3 mr-1" />
                       {flightTravelers.filter((t) => t.checked_in).length}/{flightTravelers.length} Checked In
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0 pb-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {flightTravelers.map((traveler) => (
                       <TravelerCard
                         key={traveler.id}
@@ -939,26 +1007,26 @@ function EmployeeDashboard({
         </TabsContent>
 
         <TabsContent value="departures">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">Outgoing Individuals</h2>
-          <div className="space-y-3 sm:space-y-4">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Outgoing Individuals</h2>
+          <div className="space-y-4">
             {sortedDepartureFlights.map(([flightGroup, flightTravelers]) => (
-              <Card key={flightGroup} className="border">
-                <CardHeader className="py-3 sm:py-4">
-                  <CardTitle className="flex items-center justify-between text-purple-700 text-sm sm:text-base">
+              <Card key={flightGroup} className="bg-white/90 backdrop-blur-sm shadow-lg border-0">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between text-purple-700">
                     <div>
-                      <span className="font-medium">{flightTravelers[0]?.flight_number}</span>
-                      <div className="text-[11px] sm:text-xs font-normal text-gray-600 mt-1">
+                      <span>{flightTravelers[0]?.flight_number}</span>
+                      <div className="text-sm font-normal text-gray-500 mt-1">
                         Departure: {flightTravelers[0]?.departure_time}
                       </div>
                     </div>
-                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                    <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
                       <LogOutIcon className="h-3 w-3 mr-1" />
                       {flightTravelers.filter((t) => t.checked_out).length}/{flightTravelers.length} Checked Out
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0 pb-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {flightTravelers.map((traveler) => (
                       <TravelerCard
                         key={traveler.id}
@@ -1005,35 +1073,37 @@ function TravelerCard({
   }
 
   return (
-    <div className="bg-white rounded-lg p-4 border shadow-sm">
-      <div className="flex items-center gap-3 mb-3">
+    <div className="bg-white rounded-xl p-5 shadow-lg border-0 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+      <div className="flex items-center space-x-4 mb-4">
         {traveler.photo_url ? (
           <img
             src={traveler.photo_url || "/placeholder.svg"}
             alt={traveler.name}
-            className="w-12 h-12 rounded-full object-cover border"
+            className="w-14 h-14 rounded-full object-cover ring-2 ring-blue-200"
           />
         ) : (
-          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
-            No Photo
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-inner">
+            <span className="text-gray-400 text-xs font-medium">No Photo</span>
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm text-gray-900 truncate">{traveler.name}</h3>
-          <div className="flex flex-wrap items-center gap-1 mt-1">
+          <h3 className="font-bold text-gray-800 text-sm truncate">{traveler.name}</h3>
+          <div className="flex flex-wrap items-center gap-1 mt-2">
             {traveler.overnight_hotel && (
-              <Badge className="bg-rose-100 text-rose-700 border-rose-200 px-1.5 py-0.5 h-5">
+              <Badge className="bg-gradient-to-r from-rose-500 to-pink-500 text-white px-2 py-0.5 h-5 shadow">
                 <Hotel className="h-3 w-3 mr-1" />
                 Overnight
               </Badge>
             )}
             {traveler.checked_in && (
-              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 px-1.5 py-0.5 h-5">
+              <Badge className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-2 py-0.5 h-5 shadow">
                 ✓ Checked In
               </Badge>
             )}
             {traveler.checked_out && mode !== "arrival" && (
-              <Badge className="bg-purple-100 text-purple-700 border-purple-200 px-1.5 py-0.5 h-5">✓ Checked Out</Badge>
+              <Badge className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-2 py-0.5 h-5 shadow">
+                ✓ Checked Out
+              </Badge>
             )}
           </div>
           {traveler.check_in_time && (
@@ -1045,25 +1115,45 @@ function TravelerCard({
         </div>
       </div>
 
-      {traveler.notes && <p className="text-xs text-gray-700 mb-2 p-2 bg-gray-50 rounded border">{traveler.notes}</p>}
+      {traveler.notes && (
+        <p className="text-xs text-gray-700 mb-3 p-2 bg-gray-50 rounded-md border border-gray-200">{traveler.notes}</p>
+      )}
 
       <div className="flex flex-col gap-2">
         {mode === "arrival" && !traveler.checked_in && (
-          <Button size="sm" onClick={onCheckIn} className="w-full">
+          <Button
+            size="sm"
+            onClick={onCheckIn}
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+          >
             Mark Checked In
           </Button>
         )}
         {mode !== "arrival" && !traveler.checked_in && (
-          <Button size="sm" onClick={onCheckIn} className="w-full">
+          <Button
+            size="sm"
+            onClick={onCheckIn}
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+          >
             Mark Checked In
           </Button>
         )}
         {mode !== "arrival" && traveler.checked_in && !traveler.checked_out && (
-          <Button size="sm" onClick={onCheckOut} className="w-full" variant="secondary">
+          <Button
+            size="sm"
+            onClick={onCheckOut}
+            variant="secondary"
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700"
+          >
             Mark Checked Out
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={() => setShowNoteDialog(true)} className="w-full">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowNoteDialog(true)}
+          className="w-full border-gray-300 text-gray-700 hover:bg-gray-100"
+        >
           <MessageSquare className="h-4 w-4 mr-2" />
           {traveler.notes ? "View/Edit Note" : "Add Note"}
         </Button>
@@ -1144,59 +1234,75 @@ function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => 
   }
 
   return (
-    <Card className="border">
+    <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-50 to-teal-100">
       <CardHeader>
-        <CardTitle className="text-base sm:text-lg">Add New Individual</CardTitle>
-        <CardDescription>Enter individual name, flight, and time information</CardDescription>
+        <CardTitle className="text-emerald-900">Add New Individual</CardTitle>
+        <CardDescription className="text-emerald-800/80">
+          Enter individual name, flight, and time information
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-emerald-900/90">
+                Full Name
+              </Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required className="bg-white" />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="arrivalFlight">Arrival Flight Name</Label>
+            <div className="space-y-2">
+              <Label htmlFor="arrivalFlight" className="text-emerald-900/90">
+                Arrival Flight Name
+              </Label>
               <Input
                 id="arrivalFlight"
                 value={arrivalFlightNumber}
                 onChange={(e) => setArrivalFlightNumber(e.target.value)}
                 placeholder="e.g., Alaska Airlines 66"
                 required
+                className="bg-white"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="arrivalTime">Arrival Time/Date</Label>
+            <div className="space-y-2">
+              <Label htmlFor="arrivalTime" className="text-emerald-900/90">
+                Arrival Time/Date
+              </Label>
               <Input
                 id="arrivalTime"
                 value={arrivalTime}
                 onChange={(e) => setArrivalTime(e.target.value)}
                 placeholder="e.g., August 10, 10:33pm or TBD"
                 required
+                className="bg-white"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="departureFlight">Departure Flight Name</Label>
+            <div className="space-y-2">
+              <Label htmlFor="departureFlight" className="text-emerald-900/90">
+                Departure Flight Name
+              </Label>
               <Input
                 id="departureFlight"
                 value={departureFlightNumber}
                 onChange={(e) => setDepartureFlightNumber(e.target.value)}
                 placeholder="e.g., China Airlines 21"
                 required
+                className="bg-white"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="departureTime">Departure Time/Date</Label>
+            <div className="space-y-2">
+              <Label htmlFor="departureTime" className="text-emerald-900/90">
+                Departure Time/Date
+              </Label>
               <Input
                 id="departureTime"
                 value={departureTime}
                 onChange={(e) => setDepartureTime(e.target.value)}
                 placeholder="e.g., August 11, 01:40 or TBD"
                 required
+                className="bg-white"
               />
             </div>
-            <div className="flex items-center gap-2 col-span-full">
+            <div className="flex items-center space-x-2 col-span-full">
               <Input
                 id="overnight"
                 type="checkbox"
@@ -1204,10 +1310,16 @@ function AddTravelerForm({ onAddTraveler }: { onAddTraveler: (traveler: any) => 
                 onChange={(e) => setOvernightHotel(e.target.checked)}
                 className="w-4 h-4"
               />
-              <Label htmlFor="overnight">Overnight Hotel Required</Label>
+              <Label htmlFor="overnight" className="text-emerald-900/90">
+                Overnight Hotel Required
+              </Label>
             </div>
           </div>
-          <Button type="submit" disabled={loading}>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+          >
             {loading ? "Adding..." : "Add Individual"}
           </Button>
         </form>
@@ -1226,38 +1338,45 @@ function PersonList({
   onDeletePerson?: (personId: string) => void
 }) {
   return (
-    <Card className="border">
+    <Card className="border-0 shadow-lg bg-white/90 backdrop-blur">
       <CardHeader>
-        <CardTitle className="text-base sm:text-lg">All Unique Individuals</CardTitle>
-        <CardDescription>Consolidated view across arrival and departure segments</CardDescription>
+        <CardTitle className="text-gray-900">All Unique Individuals</CardTitle>
+        <CardDescription className="text-gray-700/80">
+          Consolidated view across arrival and departure segments
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-4">
           {persons.map((person) => {
             const hasOvernight = person.arrivalSegments.some((s) => s.overnight_hotel)
             return (
-              <div key={person.personId} className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg">
+              <div
+                key={person.personId}
+                className="flex items-center space-x-4 p-4 border rounded-lg bg-gradient-to-br from-white to-gray-50"
+              >
                 {person.photo_url ? (
                   <img
                     src={person.photo_url || "/placeholder.svg"}
                     alt={person.name}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border"
+                    className="w-16 h-16 rounded-full object-cover ring-2 ring-purple-200"
                   />
                 ) : (
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600">
-                    No Photo
+                  <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-gray-500 text-xs">No Photo</span>
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-medium text-gray-900 truncate">{person.name}</h3>
-                    {/* Status and tags visible in overview */}
+                    <h3 className="font-semibold text-gray-900 truncate">{person.name}</h3>
                     {person.isAnySegmentCheckedOut ? (
-                      <Badge variant="default" className="bg-purple-600 text-white h-5">
+                      <Badge variant="default" className="bg-gradient-to-r from-purple-500 to-pink-600 text-white h-5">
                         Departed
                       </Badge>
                     ) : person.isAnySegmentCheckedIn ? (
-                      <Badge variant="default" className="h-5">
+                      <Badge
+                        variant="default"
+                        className="bg-gradient-to-r from-emerald-500 to-green-600 text-white h-5"
+                      >
                         Checked In
                       </Badge>
                     ) : (
@@ -1266,28 +1385,35 @@ function PersonList({
                       </Badge>
                     )}
                     {hasOvernight && (
-                      <Badge className="bg-rose-100 text-rose-700 border-rose-200 h-5">
+                      <Badge className="bg-gradient-to-r from-rose-500 to-pink-500 text-white h-5">
                         <Hotel className="h-3 w-3 mr-1" />
                         Overnight
                       </Badge>
                     )}
                   </div>
-                  <p className="text-[12px] sm:text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-700 mt-1">
                     Arrivals:{" "}
                     {person.arrivalSegments.map((s) => `${s.flight_number} (${s.departure_time})`).join(", ") || "N/A"}
                   </p>
-                  <p className="text-[12px] sm:text-sm text-gray-600">
+                  <p className="text-sm text-gray-700">
                     Departures:{" "}
                     {person.departureSegments.map((s) => `${s.flight_number} (${s.departure_time})`).join(", ") ||
                       "N/A"}
                   </p>
                   {person.notes && (
-                    <p className="text-xs text-gray-700 mt-1 p-2 bg-gray-50 rounded-md border">{person.notes}</p>
+                    <p className="text-xs text-gray-700 mt-1 p-2 bg-gray-50 rounded-md border border-gray-200">
+                      {person.notes}
+                    </p>
                   )}
                 </div>
                 {showManage && onDeletePerson && (
                   <div className="flex items-center">
-                    <Button size="sm" variant="destructive" onClick={() => onDeletePerson(person.personId)}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => onDeletePerson(person.personId)}
+                      className="shadow-sm"
+                    >
                       Delete
                     </Button>
                   </div>
@@ -1295,7 +1421,7 @@ function PersonList({
               </div>
             )
           })}
-          {persons.length === 0 && <div className="text-center py-8 text-gray-500">No unique individuals found.</div>}
+          {persons.length === 0 && <div className="text-center py-8 text-gray-600">No unique individuals found.</div>}
         </div>
       </CardContent>
     </Card>
