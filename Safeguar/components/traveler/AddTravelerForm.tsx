@@ -9,10 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, AlertCircle, CheckCircle, CalendarIcon, Clock } from "lucide-react"
 import { normalizePersonIdFromName } from "@/utils/travelerUtils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import type { Traveler } from "@/types/traveler"
+import { format } from "date-fns"
 
 interface AddTravelerFormProps {
   onAddTraveler: (
@@ -34,8 +38,10 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
   const [formData, setFormData] = useState({
     name: "",
     arrivalFlightNumber: "",
+    arrivalDate: undefined as Date | undefined,
     arrivalTime: "",
     departureFlightNumber: "",
+    departureDate: undefined as Date | undefined,
     departureTime: "",
     overnightHotel: false,
   })
@@ -43,27 +49,28 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [success, setSuccess] = useState(false)
 
-  const validateField = useCallback((field: string, value: string): string => {
+  const validateField = useCallback((field: string, value: string | Date | undefined): string => {
     switch (field) {
       case "name":
-        if (!value.trim()) return "Name is required"
+        if (!value || typeof value !== "string" || !value.trim()) return "Name is required"
         if (!VALIDATION_PATTERNS.name.test(value.trim())) {
           return "Name must be 2-50 characters and contain only letters, spaces, hyphens, and apostrophes"
         }
         return ""
       case "arrivalFlightNumber":
       case "departureFlightNumber":
-        if (!value.trim()) return "Flight number is required"
+        if (!value || typeof value !== "string" || !value.trim()) return "Flight number is required"
         if (!VALIDATION_PATTERNS.flightNumber.test(value.trim())) {
           return "Flight number must start with a letter and end with numbers (e.g., 'Alaska Airlines 66')"
         }
         return ""
+      case "arrivalDate":
+      case "departureDate":
+        if (!value || !(value instanceof Date)) return "Date is required"
+        return ""
       case "arrivalTime":
       case "departureTime":
-        if (!value.trim()) return "Time is required"
-        if (!VALIDATION_PATTERNS.departureTime.test(value.trim())) {
-          return "Time must be between 1-100 characters"
-        }
+        if (!value || typeof value !== "string" || !value.trim()) return "Time is required"
         return ""
       default:
         return ""
@@ -73,31 +80,49 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {}
 
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key !== "overnightHotel") {
-        const error = validateField(key, value as string)
-        if (error) newErrors[key] = error
-      }
+    // Validate all fields
+    const fieldsToValidate = [
+      "name",
+      "arrivalFlightNumber",
+      "arrivalDate",
+      "arrivalTime",
+      "departureFlightNumber",
+      "departureDate",
+      "departureTime",
+    ]
+
+    fieldsToValidate.forEach((field) => {
+      const value = formData[field as keyof typeof formData]
+      const error = validateField(field, value)
+      if (error) newErrors[field] = error
     })
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }, [formData, validateField])
 
-  const handleInputChange = useCallback(
-    (field: string, value: string) => {
-      const sanitizedValue = value.replace(/<[^>]*>/g, "").trim()
+  const formatDateTime = useCallback((date: Date, time: string): string => {
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ]
 
-      setFormData((prev) => ({ ...prev, [field]: sanitizedValue }))
-      setSuccess(false)
+    const month = monthNames[date.getMonth()]
+    const day = date.getDate()
+    const year = date.getFullYear()
 
-      // Clear field error on change
-      if (errors[field]) {
-        setErrors((prev) => ({ ...prev, [field]: "" }))
-      }
-    },
-    [errors],
-  )
+    return `${month} ${day}, ${year} ${time}`
+  }, [])
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -113,11 +138,14 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
       try {
         const personId = normalizePersonIdFromName(formData.name)
 
+        const arrivalDateTime = formatDateTime(formData.arrivalDate!, formData.arrivalTime)
+        const departureDateTime = formatDateTime(formData.departureDate!, formData.departureTime)
+
         const arrivalTraveler = {
           person_id: personId,
           name: formData.name.trim(),
           flight_number: formData.arrivalFlightNumber.trim(),
-          departure_time: formData.arrivalTime.trim(),
+          departure_time: arrivalDateTime,
           type: "arrival" as Traveler["type"],
           overnight_hotel: formData.overnightHotel,
           notes: null,
@@ -128,7 +156,7 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
           person_id: personId,
           name: formData.name.trim(),
           flight_number: formData.departureFlightNumber.trim(),
-          departure_time: formData.departureTime.trim(),
+          departure_time: departureDateTime,
           type: "departure" as Traveler["type"],
           overnight_hotel: false,
           notes: null,
@@ -140,8 +168,10 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
         setFormData({
           name: "",
           arrivalFlightNumber: "",
+          arrivalDate: undefined,
           arrivalTime: "",
           departureFlightNumber: "",
+          departureDate: undefined,
           departureTime: "",
           overnightHotel: false,
         })
@@ -155,8 +185,25 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
         setLoading(false)
       }
     },
-    [formData, validateForm, onAddTraveler],
+    [formData, validateForm, onAddTraveler, formatDateTime],
   )
+
+  const generateTimeOptions = useCallback(() => {
+    const times = []
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const time12 = new Date(2024, 0, 1, hour, minute).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+        times.push(time12)
+      }
+    }
+    return times
+  }, [])
+
+  const timeOptions = generateTimeOptions()
 
   return (
     <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-50 to-teal-100">
@@ -192,7 +239,7 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 className={`bg-white ${errors.name ? "border-red-500" : ""} ${isMobile ? "h-12 text-base" : ""}`}
                 placeholder="Enter full name"
                 maxLength={50}
@@ -213,41 +260,64 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
               <Input
                 id="arrivalFlight"
                 value={formData.arrivalFlightNumber}
-                onChange={(e) => handleInputChange("arrivalFlightNumber", e.target.value)}
+                onChange={(e) => setFormData((prev) => ({ ...prev, arrivalFlightNumber: e.target.value }))}
                 placeholder="e.g., Alaska Airlines 66"
                 className={`bg-white ${errors.arrivalFlightNumber ? "border-red-500" : ""} ${
                   isMobile ? "h-12 text-base" : ""
                 }`}
                 maxLength={50}
                 required
-                aria-describedby={errors.arrivalFlightNumber ? "arrival-flight-error" : undefined}
               />
-              {errors.arrivalFlightNumber && (
-                <p id="arrival-flight-error" className="text-sm text-red-600">
-                  {errors.arrivalFlightNumber}
-                </p>
-              )}
+              {errors.arrivalFlightNumber && <p className="text-sm text-red-600">{errors.arrivalFlightNumber}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="arrivalTime" className="text-emerald-900/90 font-medium">
-                Arrival Time/Date *
-              </Label>
-              <Input
-                id="arrivalTime"
+              <Label className="text-emerald-900/90 font-medium">Arrival Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`w-full justify-start text-left font-normal bg-white ${
+                      errors.arrivalDate ? "border-red-500" : ""
+                    } ${isMobile ? "h-12 text-base" : ""}`}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.arrivalDate ? format(formData.arrivalDate, "PPP") : "Select arrival date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.arrivalDate}
+                    onSelect={(date) => setFormData((prev) => ({ ...prev, arrivalDate: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              {errors.arrivalDate && <p className="text-sm text-red-600">{errors.arrivalDate}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-emerald-900/90 font-medium">Arrival Time *</Label>
+              <Select
                 value={formData.arrivalTime}
-                onChange={(e) => handleInputChange("arrivalTime", e.target.value)}
-                placeholder="e.g., August 10, 10:33pm or TBD"
-                className={`bg-white ${errors.arrivalTime ? "border-red-500" : ""} ${isMobile ? "h-12 text-base" : ""}`}
-                maxLength={100}
-                required
-                aria-describedby={errors.arrivalTime ? "arrival-time-error" : undefined}
-              />
-              {errors.arrivalTime && (
-                <p id="arrival-time-error" className="text-sm text-red-600">
-                  {errors.arrivalTime}
-                </p>
-              )}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, arrivalTime: value }))}
+              >
+                <SelectTrigger
+                  className={`bg-white ${errors.arrivalTime ? "border-red-500" : ""} ${isMobile ? "h-12 text-base" : ""}`}
+                >
+                  <Clock className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Select arrival time" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {timeOptions.map((time) => (
+                    <SelectItem key={time} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.arrivalTime && <p className="text-sm text-red-600">{errors.arrivalTime}</p>}
             </div>
 
             <div className="space-y-2">
@@ -257,43 +327,64 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
               <Input
                 id="departureFlight"
                 value={formData.departureFlightNumber}
-                onChange={(e) => handleInputChange("departureFlightNumber", e.target.value)}
+                onChange={(e) => setFormData((prev) => ({ ...prev, departureFlightNumber: e.target.value }))}
                 placeholder="e.g., China Airlines 21"
                 className={`bg-white ${errors.departureFlightNumber ? "border-red-500" : ""} ${
                   isMobile ? "h-12 text-base" : ""
                 }`}
                 maxLength={50}
                 required
-                aria-describedby={errors.departureFlightNumber ? "departure-flight-error" : undefined}
               />
-              {errors.departureFlightNumber && (
-                <p id="departure-flight-error" className="text-sm text-red-600">
-                  {errors.departureFlightNumber}
-                </p>
-              )}
+              {errors.departureFlightNumber && <p className="text-sm text-red-600">{errors.departureFlightNumber}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="departureTime" className="text-emerald-900/90 font-medium">
-                Departure Time/Date *
-              </Label>
-              <Input
-                id="departureTime"
+              <Label className="text-emerald-900/90 font-medium">Departure Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`w-full justify-start text-left font-normal bg-white ${
+                      errors.departureDate ? "border-red-500" : ""
+                    } ${isMobile ? "h-12 text-base" : ""}`}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.departureDate ? format(formData.departureDate, "PPP") : "Select departure date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.departureDate}
+                    onSelect={(date) => setFormData((prev) => ({ ...prev, departureDate: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              {errors.departureDate && <p className="text-sm text-red-600">{errors.departureDate}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-emerald-900/90 font-medium">Departure Time *</Label>
+              <Select
                 value={formData.departureTime}
-                onChange={(e) => handleInputChange("departureTime", e.target.value)}
-                placeholder="e.g., August 11, 01:40 or TBD"
-                className={`bg-white ${errors.departureTime ? "border-red-500" : ""} ${
-                  isMobile ? "h-12 text-base" : ""
-                }`}
-                maxLength={100}
-                required
-                aria-describedby={errors.departureTime ? "departure-time-error" : undefined}
-              />
-              {errors.departureTime && (
-                <p id="departure-time-error" className="text-sm text-red-600">
-                  {errors.departureTime}
-                </p>
-              )}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, departureTime: value }))}
+              >
+                <SelectTrigger
+                  className={`bg-white ${errors.departureTime ? "border-red-500" : ""} ${isMobile ? "h-12 text-base" : ""}`}
+                >
+                  <Clock className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Select departure time" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {timeOptions.map((time) => (
+                    <SelectItem key={time} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.departureTime && <p className="text-sm text-red-600">{errors.departureTime}</p>}
             </div>
 
             <div className="flex items-center space-x-2 md:col-span-2">
