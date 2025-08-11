@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase" // Import Supabase client
 
+console.log("App Page Component Loaded") // Added for debugging
+
 interface Traveler {
   id: string // Unique ID for this specific travel segment (e.g., "arr-1", "dep-1")
   personId: string // Unique ID for the actual person
