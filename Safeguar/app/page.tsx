@@ -191,17 +191,67 @@ function LoginPage({ setUser }: { setUser: any }) {
     setLoading(true)
     setMessage("")
 
-    // Simulate authentication for preview
-    setTimeout(() => {
-      if (email && password.length >= 6) {
+    const supabase = createClient() // Get Supabase client here
+
+    if (isRegistering) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      })
+      if (error) {
+        setMessage(error.message)
+      } else if (data.user) {
+        // After successful signup, insert into user_roles table
         const role = email.includes("admin") ? "admin" : "employee"
-        setUser({ id: "demo-user", email, role })
-        setMessage("")
-      } else {
-        setMessage("Please enter valid credentials (password must be 6+ characters)")
+        const { error: roleError } = await supabase.from("user_roles").insert({
+          user_id: data.user.id,
+          role: role,
+        })
+        if (roleError) {
+          console.error("Error inserting user role:", roleError)
+          setMessage("Registration successful, but failed to assign role. Please contact support.")
+        } else {
+          setMessage("Registration successful! Please check your email to confirm your account.")
+          // For demo purposes, we'll auto-login after signup if email confirmation is disabled
+          // In a real app, you'd wait for email confirmation or handle it differently
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+          if (signInError) {
+            setMessage(signInError.message)
+          } else if (signInData.user) {
+            setUser({ id: signInData.user.id, email: signInData.user.email, role: role })
+            setMessage("")
+          }
+        }
       }
-      setLoading(false)
-    }, 1000)
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (error) {
+        setMessage(error.message)
+      } else if (data.user) {
+        // Fetch the user's role from the user_roles table
+        const { data: roleData, error: roleError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .single()
+
+        if (roleError) {
+          console.error("Error fetching user role:", roleError)
+          setMessage("Login successful, but failed to fetch role. Please contact support.")
+          setUser({ id: data.user.id, email: data.user.email, role: "employee" }) // Default to employee
+        } else {
+          setUser({ id: data.user.id, email: data.user.email, role: roleData.role })
+          setMessage("")
+        }
+      }
+    }
+    setLoading(false)
   }
 
   return (
@@ -222,22 +272,6 @@ function LoginPage({ setUser }: { setUser: any }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-            <div className="flex items-center space-x-2 mb-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <p className="font-semibold text-blue-800">Demo Mode Active</p>
-            </div>
-            <p className="text-sm text-blue-700">Use any email and password (6+ chars)</p>
-            <div className="mt-2 space-y-1 text-xs text-blue-600">
-              <p>
-                🔑 <strong>admin@demo.com</strong> for admin access
-              </p>
-              <p>
-                👤 <strong>employee@demo.com</strong> for employee access
-              </p>
-            </div>
-          </div>
-
           <form onSubmit={handleAuth} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-gray-700 font-medium">
