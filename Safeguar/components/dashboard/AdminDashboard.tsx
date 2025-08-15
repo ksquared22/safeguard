@@ -31,12 +31,18 @@ export function AdminDashboard({
   const isMobile = useIsMobile()
   const supabase = useMemo(() => createClient(), [])
 
-  const [adminTab, setAdminTab] = useState<"overview" | "add-traveler" | "manage" | "photos">(
-    (typeof window !== "undefined" && (localStorage.getItem("adminTab") as any)) || "overview",
-  )
+  const [adminTab, setAdminTab] = useState<"overview" | "add-traveler" | "manage" | "photos">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("safeguard-admin-tab")
+      return (saved as any) || "overview"
+    }
+    return "overview"
+  })
 
   useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem("adminTab", adminTab)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("safeguard-admin-tab", adminTab)
+    }
   }, [adminTab])
 
   const stats = useMemo(() => {
