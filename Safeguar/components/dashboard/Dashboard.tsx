@@ -39,7 +39,18 @@ export function Dashboard({
   fetchTravelers,
 }: DashboardProps) {
   const [userRole, setUserRole] = useState<"admin" | "employee">(user.role)
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("safeguard-selected-date")
+      if (saved) {
+        const date = new Date(saved)
+        if (!isNaN(date.getTime())) {
+          return date
+        }
+      }
+    }
+    return new Date()
+  })
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const supabase = createClient()
 
@@ -47,12 +58,56 @@ export function Dashboard({
     setUserRole(user.role)
   }, [user.role])
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("safeguard-selected-date", selectedDate.toISOString())
+    }
+  }, [selectedDate])
+
+  useEffect(() => {
+    const handleAuthStateChange = async () => {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
+        if (error) {
+          console.error("Session error:", error)
+          await supabase.auth.signOut()
+          return
+        }
+
+        if (!session) {
+          console.log("No valid session found")
+          setUser(null)
+        }
+      } catch (error) {
+        console.error("Auth state error:", error)
+        await supabase.auth.signOut()
+        setUser(null)
+      }
+    }
+
+    handleAuthStateChange()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        setUser(null)
+      } else if (event === "TOKEN_REFRESHED" && session) {
+        console.log("Token refreshed successfully")
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase, setUser])
+
   const fetchTravelersByDate = useCallback(
     async (date: Date) => {
       try {
         console.log("=== DATABASE DEBUG START ===")
 
-        // First, let's see what data exists in the travelers table
         const { data: allTravelers, error: allError } = await supabase.from("travelers").select("*").limit(10)
 
         if (allError) {
@@ -71,7 +126,6 @@ export function Dashboard({
           return
         }
 
-        // Show sample departure_time formats
         const sampleDepartureTimes = allTravelers.slice(0, 5).map((t) => t.departure_time)
         console.log("Sample departure_time formats:", sampleDepartureTimes)
 
@@ -138,11 +192,9 @@ export function Dashboard({
           return
         }
 
-        // Get the person_ids of all arriving travelers
         const arrivingPersonIds = arrivingTravelers.map((t) => t.person_id).filter(Boolean)
         console.log("Arriving person IDs:", arrivingPersonIds)
 
-        // Now get ALL travelers (arrivals and departures) for these people
         const { data: allRelatedTravelers, error: allError2 } = await supabase
           .from("travelers")
           .select("*")
@@ -178,6 +230,12 @@ export function Dashboard({
   }, [selectedDate, fetchTravelersByDate])
 
   const handleSignOut = useCallback(async () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("safeguard-selected-date")
+      localStorage.removeItem("safeguard-admin-tab")
+      localStorage.removeItem("safeguard-employee-tab")
+    }
+
     const { error } = await supabase.auth.signOut()
     if (error) {
       console.error("Error signing out:", error)
@@ -192,16 +250,13 @@ export function Dashboard({
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-lg border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4 gap-4">
-            {/* Title */}
             <div className="flex-shrink-0">
               <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                 Safeguard Management
               </h1>
             </div>
 
-            {/* Right side controls */}
             <div className="flex items-center gap-2 sm:gap-4 flex-wrap justify-end">
-              {/* Date picker */}
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -235,7 +290,6 @@ export function Dashboard({
                 </PopoverContent>
               </Popover>
 
-              {/* User info and controls */}
               <div className="flex items-center gap-2 sm:gap-3">
                 <Badge
                   variant="secondary"
