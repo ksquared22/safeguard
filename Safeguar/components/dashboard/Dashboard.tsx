@@ -52,6 +52,8 @@ export function Dashboard({
     return new Date()
   })
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [isDateChanging, setIsDateChanging] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -59,53 +61,18 @@ export function Dashboard({
   }, [user.role])
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && !isInitialLoad) {
       localStorage.setItem("safeguard-selected-date", selectedDate.toISOString())
     }
-  }, [selectedDate])
-
-  useEffect(() => {
-    const handleAuthStateChange = async () => {
-      try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession()
-        if (error) {
-          console.error("Session error:", error)
-          await supabase.auth.signOut()
-          return
-        }
-
-        if (!session) {
-          console.log("No valid session found")
-          setUser(null)
-        }
-      } catch (error) {
-        console.error("Auth state error:", error)
-        await supabase.auth.signOut()
-        setUser(null)
-      }
-    }
-
-    handleAuthStateChange()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_OUT" || !session) {
-        setUser(null)
-      } else if (event === "TOKEN_REFRESHED" && session) {
-        console.log("Token refreshed successfully")
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase, setUser])
+  }, [selectedDate, isInitialLoad])
 
   const fetchTravelersByDate = useCallback(
     async (date: Date) => {
       try {
+        if (!isInitialLoad) {
+          setIsDateChanging(true)
+        }
+
         console.log("=== DATABASE DEBUG START ===")
 
         const { data: allTravelers, error: allError } = await supabase.from("travelers").select("*").limit(10)
@@ -220,14 +187,23 @@ export function Dashboard({
         console.log("=== DATABASE DEBUG END ===")
       } catch (error) {
         console.error("Error fetching travelers by date:", error)
+      } finally {
+        setIsInitialLoad(false)
+        setIsDateChanging(false)
       }
     },
-    [supabase, setArrivalTravelers, setDepartureTravelers, setUniquePersons],
+    [supabase, setArrivalTravelers, setDepartureTravelers, setUniquePersons, isInitialLoad],
   )
 
   useEffect(() => {
     fetchTravelersByDate(selectedDate)
-  }, [selectedDate, fetchTravelersByDate])
+  }, [])
+
+  useEffect(() => {
+    if (!isInitialLoad) {
+      fetchTravelersByDate(selectedDate)
+    }
+  }, [selectedDate, fetchTravelersByDate, isInitialLoad])
 
   const handleSignOut = useCallback(async () => {
     if (typeof window !== "undefined") {
@@ -265,7 +241,9 @@ export function Dashboard({
                       "justify-start text-left font-normal bg-white/70 hover:bg-white/90 border-gray-200 hover:border-gray-300 transition-all duration-200 min-w-0 flex-shrink-0",
                       "text-sm sm:text-base px-2 sm:px-3 py-2",
                       !selectedDate && "text-muted-foreground",
+                      isDateChanging && "opacity-50 cursor-wait",
                     )}
+                    disabled={isDateChanging}
                   >
                     <CalendarIcon className="mr-1 sm:mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="hidden sm:inline">
@@ -322,22 +300,33 @@ export function Dashboard({
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {userRole === "admin" ? (
-          <AdminDashboard
-            uniquePersons={uniquePersons}
-            setUniquePersons={setUniquePersons}
-            setArrivalTravelers={setArrivalTravelers}
-            setDepartureTravelers={setDepartureTravelers}
-            fetchTravelers={() => fetchTravelersByDate(selectedDate)}
-          />
-        ) : (
-          <EmployeeDashboard
-            arrivalTravelers={arrivalTravelers}
-            setArrivalTravelers={setArrivalTravelers}
-            departureTravelers={departureTravelers}
-            setDepartureTravelers={setDepartureTravelers}
-            fetchTravelers={() => fetchTravelersByDate(selectedDate)}
-          />
+        {isDateChanging && (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Loading...</span>
+          </div>
+        )}
+
+        {!isDateChanging && (
+          <>
+            {userRole === "admin" ? (
+              <AdminDashboard
+                uniquePersons={uniquePersons}
+                setUniquePersons={setUniquePersons}
+                setArrivalTravelers={setArrivalTravelers}
+                setDepartureTravelers={setDepartureTravelers}
+                fetchTravelers={() => fetchTravelersByDate(selectedDate)}
+              />
+            ) : (
+              <EmployeeDashboard
+                arrivalTravelers={arrivalTravelers}
+                setArrivalTravelers={setArrivalTravelers}
+                departureTravelers={departureTravelers}
+                setDepartureTravelers={setDepartureTravelers}
+                fetchTravelers={() => fetchTravelersByDate(selectedDate)}
+              />
+            )}
+          </>
         )}
       </main>
     </div>
