@@ -92,7 +92,7 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
     ]
 
     fieldsToValidate.forEach((field) => {
-      const value = formData[field as keyof typeof formData]
+      const value = formData[field as keyof typeof formData] as string | Date | undefined
       const error = validateField(field, value)
       if (error) newErrors[field] = error
     })
