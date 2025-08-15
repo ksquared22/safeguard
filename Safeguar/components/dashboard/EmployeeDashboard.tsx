@@ -30,12 +30,18 @@ export function EmployeeDashboard({
   const isMobile = useIsMobile()
   const supabase = useMemo(() => createClient(), [])
 
-  const [empTab, setEmpTab] = useState<"arrivals" | "departures">(
-    (typeof window !== "undefined" && (localStorage.getItem("empTab") as any)) || "arrivals",
-  )
+  const [empTab, setEmpTab] = useState<"arrivals" | "departures">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("safeguard-employee-tab")
+      return (saved as any) || "arrivals"
+    }
+    return "arrivals"
+  })
 
   useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem("empTab", empTab)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("safeguard-employee-tab", empTab)
+    }
   }, [empTab])
 
   const { sortedArrivalFlights, sortedDepartureFlights, stats } = useMemo(() => {
