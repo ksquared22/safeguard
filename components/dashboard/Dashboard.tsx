@@ -93,7 +93,7 @@ export function Dashboard({
           return
         }
 
-        const sampleDepartureTimes = allTravelers.slice(0, 5).map((t) => t.departure_time)
+        const sampleDepartureTimes = allTravelers.slice(0, 5).map((t: Traveler) => t.departure_time)
         console.log("Sample departure_time formats:", sampleDepartureTimes)
 
         const monthNames = [
