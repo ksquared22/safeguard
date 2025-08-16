@@ -53,7 +53,7 @@ export function processTravelerData(rawTravelers: Traveler[]): {
         personId,
         name: current.name,
         photo_url: current.photo_url,
-        notes: current.notes,
+        notes: current.notes ?? null,
         arrivalSegments: [],
         departureSegments: [],
         isAnySegmentCheckedIn: false,
