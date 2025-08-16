@@ -24,16 +24,91 @@ export function useTravelers() {
     }
   }, [])
 
+  const patchLocal = useCallback((id: string, patch: Partial<Traveler>) => {
+    setArrivalTravelers((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } as Traveler : t)))
+    setDepartureTravelers((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } as Traveler : t)))
+    setUniquePersons((prev) =>
+      prev.map((p) => ({
+        ...p,
+        arrivalSegments: p.arrivalSegments.map((t) => (t.id === id ? { ...t, ...patch } as Traveler : t)),
+        departureSegments: p.departureSegments.map((t) => (t.id === id ? { ...t, ...patch } as Traveler : t)),
+        isAnySegmentCheckedIn:
+          p.arrivalSegments.some((t) => t.id === id ? (patch.checked_in ?? t.checked_in) || (patch.checked_out ?? t.checked_out) : t.checked_in || t.checked_out) ||
+          p.departureSegments.some((t) => t.id === id ? (patch.checked_in ?? t.checked_in) || (patch.checked_out ?? t.checked_out) : t.checked_in || t.checked_out),
+      }))
+    )
+  }, [])
+
+  const updateTraveler = useCallback(
+    async (id: string, patch: Partial<Traveler>) => {
+      if (!supabase) throw new Error("Supabase not initialized")
+      // optimistic UI
+      patchLocal(id, patch)
+      const { error } = await supabase.from("travelers").update(patch).eq("id", id)
+      if (error) {
+        console.error("Update failed, reverting:", error)
+        // refetch to ensure consistency if update fails
+        await fetchTravelers()
+        throw error
+      }
+    },
+    [supabase, patchLocal]
+  )
+
+  const checkIn = useCallback(
+    async (id: string) => {
+      const now = new Date().toISOString()
+      await updateTraveler(id, { checked_in: true, check_in_time: now })
+    },
+    [updateTraveler]
+  )
+
+  const undoCheckIn = useCallback(
+    async (id: string) => {
+      await updateTraveler(id, { checked_in: false, check_in_time: null })
+    },
+    [updateTraveler]
+  )
+
+  const checkOut = useCallback(
+    async (id: string) => {
+      const now = new Date().toISOString()
+      await updateTraveler(id, { checked_out: true, check_out_time: now })
+    },
+    [updateTraveler]
+  )
+
+  const undoCheckOut = useCallback(
+    async (id: string) => {
+      await updateTraveler(id, { checked_out: false, check_out_time: null })
+    },
+    [updateTraveler]
+  )
+
+  const setHeld = useCallback(
+    async (id: string, held: boolean) => {
+      const timeField = held ? { holdTime: new Date().toISOString() } : { holdTime: null }
+      await updateTraveler(id, { held, ...timeField })
+    },
+    [updateTraveler]
+  )
+
+  const setTransported = useCallback(
+    async (id: string, isBeingTransported: boolean) => {
+      const timeField = isBeingTransported ? { transportTime: new Date().toISOString() } : { transportTime: null }
+      await updateTraveler(id, { isBeingTransported, ...timeField })
+    },
+    [updateTraveler]
+  )
+
   const fetchTravelers = useCallback(async () => {
     if (!supabase) {
       setError("Database connection not available")
       setLoading(false)
       return
     }
-
     setLoading(true)
     setError(null)
-
     try {
       const { data, error } = await supabase.from("travelers").select("*")
       if (error) {
@@ -167,5 +242,14 @@ export function useTravelers() {
     setUniquePersons,
     fetchTravelers,
     supabase,
+
+    // NEW: mutation helpers for buttons
+    updateTraveler,
+    checkIn,
+    undoCheckIn,
+    checkOut,
+    undoCheckOut,
+    setHeld,
+    setTransported,
   }
 }
