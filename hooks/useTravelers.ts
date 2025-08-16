@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { createClient } from "@/lib/supabase"
 import type { Traveler, Person, User } from "@/types/traveler"
 import { processTravelerData } from "@/utils/travelerUtils"
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js"
 
 export function useTravelers() {
   const [user, setUser] = useState<User | null>(null)
@@ -102,42 +103,44 @@ export function useTravelers() {
     loadUserAndData()
 
     if (supabase) {
-      const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (_event === "SIGNED_OUT") {
-          setUser(null)
-          setArrivalTravelers([])
-          setDepartureTravelers([])
-          setUniquePersons([])
-          window.location.href = "/"
-        } else if (session?.user) {
-          const refetch = async () => {
-            try {
-              const { data: roleData, error: roleError } = await supabase
-                .from("user_roles")
-                .select("role")
-                .eq("user_id", session.user.id)
-                .single()
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        (event: AuthChangeEvent, session: Session | null) => {
+          if (event === "SIGNED_OUT") {
+            setUser(null)
+            setArrivalTravelers([])
+            setDepartureTravelers([])
+            setUniquePersons([])
+            window.location.href = "/"
+          } else if (session?.user) {
+            const refetch = async () => {
+              try {
+                const { data: roleData, error: roleError } = await supabase
+                  .from("user_roles")
+                  .select("role")
+                  .eq("user_id", session.user.id)
+                  .single()
 
-              if (roleError) {
-                console.error("Error fetching user role on auth change:", roleError)
-                setUser({ id: session.user.id, email: session.user.email!, role: "employee" })
-              } else {
-                setUser({ id: session.user.id, email: session.user.email!, role: roleData.role })
+                if (roleError) {
+                  console.error("Error fetching user role on auth change:", roleError)
+                  setUser({ id: session.user.id, email: session.user.email!, role: "employee" })
+                } else {
+                  setUser({ id: session.user.id, email: session.user.email!, role: roleData.role })
+                }
+                await fetchTravelers()
+              } catch (err) {
+                console.error("Error in auth state change handler:", err)
+                setError("Failed to refresh user data")
               }
-              await fetchTravelers()
-            } catch (err) {
-              console.error("Error in auth state change handler:", err)
-              setError("Failed to refresh user data")
             }
+            refetch()
+          } else {
+            setUser(null)
+            setArrivalTravelers([])
+            setDepartureTravelers([])
+            setUniquePersons([])
           }
-          refetch()
-        } else {
-          setUser(null)
-          setArrivalTravelers([])
-          setDepartureTravelers([])
-          setUniquePersons([])
         }
-      })
+      )
 
       return () => authListener?.unsubscribe()
     }
