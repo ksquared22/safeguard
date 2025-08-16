@@ -143,6 +143,7 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
 
         const arrivalTraveler = {
           person_id: personId,
+          personId: personId,    
           name: formData.name.trim(),
           flight_number: formData.arrivalFlightNumber.trim(),
           departure_time: arrivalDateTime,
@@ -154,6 +155,7 @@ export const AddTravelerForm = memo(function AddTravelerForm({ onAddTraveler }: 
 
         const departureTraveler = {
           person_id: personId,
+          personId: personId,    
           name: formData.name.trim(),
           flight_number: formData.departureFlightNumber.trim(),
           departure_time: departureDateTime,
