@@ -1,15 +1,44 @@
 import type { Traveler, Person } from "@/types/traveler"
 
-export function normalizePersonIdFromName(name: string) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+// --- helpers ----------------------------------------------------
+
+export function sanitizeSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
 }
 
-export function processTravelerData(travelers: Traveler[]) {
+export function normalizePersonIdFromName(name: string): string {
+  const slug = sanitizeSlug(name)
+  return `person-${slug}`
+}
+
+// --- backward-compat API used by EmployeeDashboard ----------------
+// Some components import groupTravelers; keep it exported.
+export function groupTravelers(travelers: Traveler[]): [string, Traveler[]][] {
+  const grouped: Record<string, Traveler[]> = travelers.reduce((acc, traveler) => {
+    const key = `${traveler.departure_time} - ${traveler.flight_number}`
+    if (!acc[key]) acc[key] = []
+    acc[key].push(traveler)
+    return acc
+  }, {} as Record<string, Traveler[]>)
+
+  // stable sort by the key
+  return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b))
+}
+
+// --- main data shaper used across the app ------------------------
+
+export function processTravelerData(rawTravelers: Traveler[]) {
   const peopleMap: Record<string, Person> = {}
   const arrivals: Traveler[] = []
   const departures: Traveler[] = []
 
-  travelers.forEach((traveler) => {
+  rawTravelers.forEach((traveler) => {
     const pid =
       (traveler.person_id && traveler.person_id.trim()) ||
       (traveler.personId && traveler.personId.trim()) ||
@@ -29,8 +58,10 @@ export function processTravelerData(travelers: Traveler[]) {
 
     const t: Traveler = {
       ...traveler,
+      // normalize both id shapes so downstream code can rely on either
       personId: pid,
       person_id: traveler.person_id ?? pid,
+      // coalesce optional fields to avoid undefined at runtime
       notes: traveler.notes ?? null,
       photo_url: traveler.photo_url ?? null,
       checked_in: traveler.checked_in ?? false,
@@ -51,7 +82,7 @@ export function processTravelerData(travelers: Traveler[]) {
       peopleMap[pid].isAnySegmentCheckedIn || !!t.checked_in || !!t.checked_out
   })
 
-  // Sort arrivals & departures by time (string ISO or time-like)
+  // Sort by departure_time string (ISO or time-like)
   arrivals.sort((a, b) => (a.departure_time || "").localeCompare(b.departure_time || ""))
   departures.sort((a, b) => (a.departure_time || "").localeCompare(b.departure_time || ""))
 
