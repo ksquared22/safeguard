@@ -27,7 +27,6 @@ export function groupTravelers(travelers: Traveler[]): [string, Traveler[]][] {
     return acc
   }, {} as Record<string, Traveler[]>)
 
-  // stable sort by the key
   return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b))
 }
 
@@ -36,7 +35,7 @@ export function groupTravelers(travelers: Traveler[]): [string, Traveler[]][] {
 export function processTravelerData(rawTravelers: Traveler[]) {
   const peopleMap: Record<string, Person> = {}
   const arrivals: Traveler[] = []
-  const departures: Traveler[] = []
+  const departuresAll: Traveler[] = []
 
   rawTravelers.forEach((traveler) => {
     const pid =
@@ -58,10 +57,8 @@ export function processTravelerData(rawTravelers: Traveler[]) {
 
     const t: Traveler = {
       ...traveler,
-      // normalize both id shapes so downstream code can rely on either
       personId: pid,
       person_id: traveler.person_id ?? pid,
-      // coalesce optional fields to avoid undefined at runtime
       notes: traveler.notes ?? null,
       photo_url: traveler.photo_url ?? null,
       checked_in: traveler.checked_in ?? false,
@@ -74,7 +71,7 @@ export function processTravelerData(rawTravelers: Traveler[]) {
       arrivals.push(t)
       peopleMap[pid].arrivalSegments.push(t)
     } else {
-      departures.push(t)
+      departuresAll.push(t)
       peopleMap[pid].departureSegments.push(t)
     }
 
@@ -82,9 +79,19 @@ export function processTravelerData(rawTravelers: Traveler[]) {
       peopleMap[pid].isAnySegmentCheckedIn || !!t.checked_in || !!t.checked_out
   })
 
-  // Sort by departure_time string (ISO or time-like)
+  // Sort for stable UI
   arrivals.sort((a, b) => (a.departure_time || "").localeCompare(b.departure_time || ""))
-  departures.sort((a, b) => (a.departure_time || "").localeCompare(b.departure_time || ""))
+  departuresAll.sort((a, b) => (a.departure_time || "").localeCompare(b.departure_time || ""))
+
+  // BUSINESS RULE:
+  // A traveler should NOT show up in the DEPARTURES list
+  // until they have been CHECKED IN on the ARRIVALS list.
+  const departures = departuresAll.filter((t) => {
+    const person = peopleMap[t.personId]
+    if (!person) return false
+    // Show departures only if this person has at least one ARRIVAL segment checked in
+    return person.arrivalSegments.some((seg) => seg.checked_in === true)
+  })
 
   return {
     arrivals,
